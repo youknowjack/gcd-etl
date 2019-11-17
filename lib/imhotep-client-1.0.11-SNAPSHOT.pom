@@ -1,0 +1,142 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.indeed</groupId>
+        <artifactId>imhotep</artifactId>
+        <version>1.0.11-SNAPSHOT</version>
+    </parent>
+
+	<groupId>com.indeed</groupId>
+	<artifactId>imhotep-client</artifactId>
+	<version>1.0.11-SNAPSHOT</version>
+	<packaging>jar</packaging>
+
+	<licenses>
+		<license>
+			<name>The Apache Software License, Version 2.0</name>
+			<url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+			<distribution>repo</distribution>
+		</license>
+	</licenses>
+
+	<name>Imhotep Client jar</name>
+	<url>http://indeedeng.github.io/imhotep/</url>
+
+    <scm> <!-- prevent Maven from trying to override with subproject suffix -->
+        <url>${project.parent.scm.url}</url>
+        <connection>${project.parent.scm.connection}</connection>
+        <developerConnection>${project.parent.scm.developerConnection}</developerConnection>
+    </scm>
+
+	<pluginRepositories>
+		<pluginRepository>
+			<id>bintry-sergei-ivanov-maven</id>
+			<url>https://dl.bintray.com/sergei-ivanov/maven</url>
+		</pluginRepository>
+	</pluginRepositories>
+
+	<build>
+		<extensions>
+			<extension>
+				<groupId>kr.motd.maven</groupId>
+				<artifactId>os-maven-plugin</artifactId>
+				<version>1.4.1.Final</version>
+			</extension>
+		</extensions>
+
+		<plugins>
+			<plugin>
+				<groupId>org.xolstice.maven.plugins</groupId>
+				<artifactId>protobuf-maven-plugin</artifactId>
+				<version>0.5.0</version>
+				<configuration>
+					<protocArtifact>com.google.protobuf:protoc:${protoc.version}:exe:${os.detected.classifier}</protocArtifact>
+				</configuration>
+				<executions>
+					<execution>
+						<phase>generate-sources</phase>
+						<goals>
+							<goal>compile</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
+
+	<dependencies>
+		<dependency>
+			<groupId>com.indeed</groupId>
+			<artifactId>util-core</artifactId>
+			<version>${indeed-util.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>log4j</groupId>
+			<artifactId>log4j</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>com.google.protobuf</groupId>
+			<artifactId>protobuf-java</artifactId>
+			<version>${protobuf-java.version}</version>
+		</dependency>
+
+        <dependency>
+            <groupId>com.google.code.findbugs</groupId>
+            <artifactId>jsr305</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.indeed</groupId>
+            <artifactId>util-zookeeper</artifactId>
+            <version>${indeed-util.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.zookeeper</groupId>
+            <artifactId>zookeeper</artifactId>
+            <version>${zookeeper.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>joda-time</groupId>
+            <artifactId>joda-time</artifactId>
+            <version>${joda-time.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>it.unimi.dsi</groupId>
+            <artifactId>fastutil</artifactId>
+            <version>${fastutil.version}</version>
+        </dependency>
+
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit-dep</artifactId>
+			<scope>test</scope>
+		</dependency>
+
+	</dependencies>
+
+	<properties>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<autoVersionSubmodules>true</autoVersionSubmodules>
+
+		<colt.version>1.2.0</colt.version>
+		<fastutil.version>6.2.2</fastutil.version>
+		<gnu-trove.version>3.0.3</gnu-trove.version>
+		<lucene.version>2.4.1</lucene.version>
+		<joda-time.version>2.0</joda-time.version>
+		<protobuf-java.version>2.5.0</protobuf-java.version>
+		<protoc.version>2.5.0</protoc.version>
+		<snakeyaml.version>1.10</snakeyaml.version>
+		<zookeeper.version>3.4.5-cdh5.4.11</zookeeper.version>
+
+		<!-- releases of our own projects to use -->
+		<!-- these should only be SNAPSHOTs when no release is available -->
+		<indeed-util.version>1.0.23</indeed-util.version>
+	</properties>
+
+</project>
