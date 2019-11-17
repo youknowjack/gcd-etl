@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>gcd</groupId>
+    <artifactId>gcd-imhotep</artifactId>
+    <version>1.0-SNAPSHOT</version><build><plugins><plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-compiler-plugin</artifactId><configuration><source>7</source><target>7</target></configuration></plugin></plugins></build>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.yaml</groupId>
+            <artifactId>snakeyaml</artifactId>
+            <version>1.10</version>
+        </dependency>
+
+        <dependency>
+          <groupId>com.indeed</groupId>
+          <artifactId>imhotep-archive</artifactId>
+          <version>${imhotep.version}</version>
+        </dependency>
+
+        <dependency>
+          <groupId>com.indeed</groupId>
+          <artifactId>imhotep-client</artifactId>
+          <version>${imhotep.version}</version>
+        </dependency>
+
+        <dependency>
+          <groupId>com.indeed</groupId>
+          <artifactId>imhotep-server</artifactId>
+          <version>${imhotep.version}</version>
+        </dependency>
+
+       <dependency>
+         <groupId>com.indeed</groupId>
+         <artifactId>util-io</artifactId>
+           <version>${indeed-util.version}</version>
+       </dependency>
+
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>${google-guava.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>it.unimi.dsi</groupId>
+            <artifactId>fastutil</artifactId>
+            <version>${fastutil.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>mysql</groupId>
+            <artifactId>mysql-connector-java</artifactId>
+            <version>8.0.18</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-client</artifactId>
+            <version>2.6.0-cdh5.4.11</version>
+        </dependency>
+
+        <dependency>
+            <groupId>log4j</groupId>
+            <artifactId>log4j</artifactId>
+            <version>1.2.17</version>
+        </dependency>
+    </dependencies>
+
+    <properties>
+         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+         <autoVersionSubmodules>true</autoVersionSubmodules>
+
+         <imhotep.version>1.0.11-SNAPSHOT</imhotep.version>
+         <indeed-util.version>1.0.23</indeed-util.version>
+         <google-guava.version>16.0.1</google-guava.version>
+         <fastutil.version>6.2.2</fastutil.version>
+     </properties>
+</project>

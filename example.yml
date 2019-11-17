@@ -1,0 +1,12 @@
+gcdatabase:
+  url: jdbc:mysql://HOST/DATABASE
+  user: USERNAME
+  password: PASSWORD
+
+#TBD
+#destination:
+#  s3bucket: BUCKET
+#  s3key: KEY
+#  s3secret: SECRET
+
+  
