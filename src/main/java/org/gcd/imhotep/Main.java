@@ -126,6 +126,10 @@ public class Main {
                 "  indicia.id AS indicia_publisher_id, \n" +
                 "  indicia.name AS indicia_publisher_name, \n" +
                 "  indicia.country_id AS indpubcountryid, \n" +
+                "  indicia.parent_id AS indicia_publisher_parent_id, \n" +
+                "  indicia.year_began AS indicia_publisher_year_began, \n" +
+                "  indicia.year_ended AS indicia_publisher_year_ended, \n" +
+                "  indicia.is_surrogate AS indicia_publisher_is_surrogate, \n" +
                 "  indicia.url AS indicia_publisher_url, \n" +
                 "  brand.id AS brand_id, \n" +
                 "  brand.name AS brand_name, \n" +
@@ -205,6 +209,10 @@ public class Main {
                 addOptionalString(rs, doc, "indicia_publisher_name");
                 addOptionalStringFromId(rs, doc, "indpubcountryid", "indicia_publisher_country_code",
                         metadata.getCountryCodeMap());
+                addOptionalInt(rs, doc, "indicia_publisher_parent_id");
+                addOptionalInt(rs, doc, "indicia_publisher_year_began");
+                addOptionalInt(rs, doc, "indicia_publisher_year_ended");
+                addOptionalInt(rs, doc, "indicia_publisher_is_surrogate");
                 addOptionalString(rs, doc, "indicia_publisher_url");
                 addOptionalInt(rs, doc, "brand_id");
                 addOptionalString(rs, doc, "brand_name");
