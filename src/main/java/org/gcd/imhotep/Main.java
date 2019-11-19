@@ -103,6 +103,8 @@ public class Main {
                 "  issue.volume_not_printed, \n" +
                 "  issue.editing AS editing, \n" +
                 "  issue.notes AS notes, \n" +
+                "  UNIX_TIMESTAMP(issue.created) AS created, \n" +
+                "  UNIX_TIMESTAMP(issue.modified) AS modified, \n" +
                 "  series.id AS series_id, \n" +
                 "  series.name AS series_name, \n" +
                 "  series.year_began AS series_year_began, \n" +
@@ -119,10 +121,14 @@ public class Main {
                 "  series.publishing_format AS series_publishing_format, \n" +
                 "  series.publication_type_id AS spubtypeid, \n" +
                 "  series.is_singleton AS series_is_singleton, \n" +
+                "  UNIX_TIMESTAMP(series.created) AS series_created, \n" +
+                "  UNIX_TIMESTAMP(series.modified) AS series_modified, \n" +
                 "  publisher.id AS publisher_id, \n" +
                 "  publisher.name AS publisher_name, \n" +
                 "  publisher.country_id AS pubcountryid, \n" +
                 "  publisher.url AS publisher_url, \n" +
+                "  UNIX_TIMESTAMP(publisher.created) AS publisher_created, \n" +
+                "  UNIX_TIMESTAMP(publisher.modified) AS publisher_modified, \n" +
                 "  indicia.id AS indicia_publisher_id, \n" +
                 "  indicia.name AS indicia_publisher_name, \n" +
                 "  indicia.country_id AS indpubcountryid, \n" +
@@ -131,9 +137,13 @@ public class Main {
                 "  indicia.year_ended AS indicia_publisher_year_ended, \n" +
                 "  indicia.is_surrogate AS indicia_publisher_is_surrogate, \n" +
                 "  indicia.url AS indicia_publisher_url, \n" +
+                "  UNIX_TIMESTAMP(indicia.created) AS indicia_publisher_created, \n" +
+                "  UNIX_TIMESTAMP(indicia.modified) AS indicia_publisher_modified, \n" +
                 "  brand.id AS brand_id, \n" +
                 "  brand.name AS brand_name, \n" +
                 "  brand.url AS brand_url, \n" +
+                "  UNIX_TIMESTAMP(brand.created) AS brand_created, \n" +
+                "  UNIX_TIMESTAMP(brand.modified) AS brand_modified, \n" +
                 "  story.id AS story_id, \n" +
                 "  story.title AS story_title, \n" +
                 "  story.feature AS story_feature, \n" +
@@ -149,7 +159,9 @@ public class Main {
                 "  story.characters AS story_characters, \n" +
                 "  story.type_id AS strtypeid, \n" +
                 "  story.job_number AS story_job_number, \n" +
-                "  story.first_line AS story_first_line \n" +
+                "  story.first_line AS story_first_line, \n" +
+                "  UNIX_TIMESTAMP(story.created) AS story_created, \n" +
+                "  UNIX_TIMESTAMP(story.modified) AS story_modified \n" +
                 "FROM gcd_issue AS issue \n" +
                 "  INNER JOIN gcd_series AS series ON issue.series_id=series.id \n" +
                 "  INNER JOIN gcd_publisher AS publisher ON series.publisher_id=publisher.id\n" +
@@ -185,6 +197,8 @@ public class Main {
                 addOptionalInt(rs, doc, "volume_not_printed");
                 addOptionalMultiString(rs, doc, "editing", false);
                 addOptionalString(rs, doc, "notes");
+                addInt(rs, doc, "created");
+                addInt(rs, doc, "modified");
                 addInt(rs, doc, "series_id");
                 addOptionalString(rs, doc, "series_name");
                 addOptionalInt(rs, doc, "series_year_began");
@@ -201,9 +215,13 @@ public class Main {
                 addOptionalString(rs, doc, "series_publishing_format");
                 addOptionalStringFromId(rs, doc, "spubtypeid", "series_publication_type", metadata.getPublicationTypeMap());
                 addOptionalInt(rs, doc, "series_is_singleton");
+                addInt(rs, doc, "series_created");
+                addInt(rs, doc, "series_modified");
                 addOptionalInt(rs, doc, "publisher_id");
                 addOptionalString(rs, doc, "publisher_name");
                 addOptionalStringFromId(rs, doc, "pubcountryid", "publisher_country_code", metadata.getCountryCodeMap());
+                addInt(rs, doc, "publisher_created");
+                addInt(rs, doc, "publisher_modified");
                 addOptionalString(rs, doc, "publisher_url");
                 addOptionalInt(rs, doc, "indicia_publisher_id");
                 addOptionalString(rs, doc, "indicia_publisher_name");
@@ -214,9 +232,13 @@ public class Main {
                 addOptionalInt(rs, doc, "indicia_publisher_year_ended");
                 addOptionalInt(rs, doc, "indicia_publisher_is_surrogate");
                 addOptionalString(rs, doc, "indicia_publisher_url");
+                addInt(rs, doc, "indicia_publisher_created");
+                addInt(rs, doc, "indicia_publisher_modified");
                 addOptionalInt(rs, doc, "brand_id");
                 addOptionalString(rs, doc, "brand_name");
                 addOptionalString(rs, doc, "brand_url");
+                addInt(rs, doc, "brand_created");
+                addInt(rs, doc, "brand_modified");
                 if (rs.getObject("story_id") != null) {
                     addOptionalInt(rs, doc, "story_id");
                     addOptionalString(rs, doc, "story_title");
@@ -234,6 +256,8 @@ public class Main {
                     addOptionalStringFromId(rs, doc, "strtypeid", "story_type", metadata.getStoryTypeMap());
                     addOptionalString(rs, doc, "story_job_number");
                     addOptionalString(rs, doc, "story_first_line");
+                    addInt(rs, doc, "story_created");
+                    addInt(rs, doc, "story_modified");
                 }
 
                 if (++count % 10000 == 0) {
