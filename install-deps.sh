@@ -15,3 +15,4 @@ install_maven com.indeed imhotep-server
 install_maven com.indeed imhotep-client
 install_maven com.indeed imhotep-archive
 
+mvn install:install-file -Dfile=lib/imhotep-1.0.11-SNAPSHOT.pom -DgroupId=com.indeed -DartifactId=imhotep -Dversion=1.0.11-SNAPSHOT -Dpackaging=xml -DpomFile=lib/imhotep-1.0.11-SNAPSHOT.pom

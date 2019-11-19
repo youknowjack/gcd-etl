@@ -10,6 +10,10 @@
 
     <repositories>
         <repository>
+             <id>maven</id>
+             <url>https://repo.maven.apache.org/maven2</url>
+        </repository>
+        <repository>
             <id>cloudera</id>
             <url>https://repository.cloudera.com/artifactory/cloudera-repos/</url>
         </repository>
