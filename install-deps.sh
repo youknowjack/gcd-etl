@@ -14,5 +14,4 @@ function install_maven {
 install_maven com.indeed imhotep-server
 install_maven com.indeed imhotep-client
 install_maven com.indeed imhotep-archive
-install_maven org.apache.hadoop hadoop-client
 
