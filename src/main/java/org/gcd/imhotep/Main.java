@@ -36,8 +36,8 @@ public class Main {
         final String date = args[1];
         final String indexName = args[2];
 
-        final long timestamp = new SimpleDateFormat("y-M-d z").parse(date +" GMT-06:00").getTime();
-        System.out.println(timestamp);System.exit(0);
+        final long timestampMillis = new SimpleDateFormat("y-M-d z").parse(date +" GMT-06:00").getTime();
+        final long timestamp = timestampMillis/1000;
 
         final Yaml yaml = new Yaml();
         InputStream in = Files.newInputStream(Paths.get(configFile));
