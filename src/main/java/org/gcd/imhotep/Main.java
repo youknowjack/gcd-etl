@@ -29,6 +29,8 @@ public class Main {
 
     private static final Pattern DATE_PATTERN = Pattern.compile("(\\d\\d\\d\\d)-(\\d\\d)-(\\d\\d)");
 
+    private static final SimpleDateFormat COMPARABLE_DATE_FORMAT = new SimpleDateFormat("yMd");
+
     public static void main(String[] args) throws ClassNotFoundException, IOException, SQLException, ParseException {
         BasicConfigurator.configure();
 
@@ -197,8 +199,8 @@ public class Main {
                 addOptionalInt(rs, doc, "volume_not_printed");
                 addOptionalMultiString(rs, doc, "editing", false);
                 addOptionalString(rs, doc, "notes");
-                addInt(rs, doc, "created");
-                addInt(rs, doc, "modified");
+                addOptionalDateFromTimestamp(rs, doc, "created");
+                addOptionalDateFromTimestamp(rs, doc, "modified");
                 addInt(rs, doc, "series_id");
                 addOptionalString(rs, doc, "series_name");
                 addOptionalInt(rs, doc, "series_year_began");
@@ -215,13 +217,13 @@ public class Main {
                 addOptionalString(rs, doc, "series_publishing_format");
                 addOptionalStringFromId(rs, doc, "spubtypeid", "series_publication_type", metadata.getPublicationTypeMap());
                 addOptionalInt(rs, doc, "series_is_singleton");
-                addInt(rs, doc, "series_created");
-                addInt(rs, doc, "series_modified");
+                addOptionalDateFromTimestamp(rs, doc, "series_created");
+                addOptionalDateFromTimestamp(rs, doc, "series_modified");
                 addOptionalInt(rs, doc, "publisher_id");
                 addOptionalString(rs, doc, "publisher_name");
                 addOptionalStringFromId(rs, doc, "pubcountryid", "publisher_country_code", metadata.getCountryCodeMap());
-                addInt(rs, doc, "publisher_created");
-                addInt(rs, doc, "publisher_modified");
+                addOptionalDateFromTimestamp(rs, doc, "publisher_created");
+                addOptionalDateFromTimestamp(rs, doc, "publisher_modified");
                 addOptionalString(rs, doc, "publisher_url");
                 addOptionalInt(rs, doc, "indicia_publisher_id");
                 addOptionalString(rs, doc, "indicia_publisher_name");
@@ -232,13 +234,13 @@ public class Main {
                 addOptionalInt(rs, doc, "indicia_publisher_year_ended");
                 addOptionalInt(rs, doc, "indicia_publisher_is_surrogate");
                 addOptionalString(rs, doc, "indicia_publisher_url");
-                addInt(rs, doc, "indicia_publisher_created");
-                addInt(rs, doc, "indicia_publisher_modified");
+                addOptionalDateFromTimestamp(rs, doc, "indicia_publisher_created");
+                addOptionalDateFromTimestamp(rs, doc, "indicia_publisher_modified");
                 addOptionalInt(rs, doc, "brand_id");
                 addOptionalString(rs, doc, "brand_name");
                 addOptionalString(rs, doc, "brand_url");
-                addInt(rs, doc, "brand_created");
-                addInt(rs, doc, "brand_modified");
+                addOptionalDateFromTimestamp(rs, doc, "brand_created");
+                addOptionalDateFromTimestamp(rs, doc, "brand_modified");
                 if (rs.getObject("story_id") != null) {
                     addOptionalInt(rs, doc, "story_id");
                     addOptionalString(rs, doc, "story_title");
@@ -256,8 +258,8 @@ public class Main {
                     addOptionalStringFromId(rs, doc, "strtypeid", "story_type", metadata.getStoryTypeMap());
                     addOptionalString(rs, doc, "story_job_number");
                     addOptionalString(rs, doc, "story_first_line");
-                    addInt(rs, doc, "story_created");
-                    addInt(rs, doc, "story_modified");
+                    addOptionalDateFromTimestamp(rs, doc, "story_created");
+                    addOptionalDateFromTimestamp(rs, doc, "story_modified");
                 }
 
                 if (++count % 10000 == 0) {
@@ -328,6 +330,18 @@ public class Main {
         } catch (SQLException e) {
             log.warning(e.getMessage());
         } catch (NumberFormatException e) {
+            log.warning(e.getMessage());
+        }
+    }
+
+    private static void addOptionalDateFromTimestamp(final ResultSet rs, final FlamdexDocument doc, final String field) {
+        try {
+            final long unixTime = rs.getInt(field);
+            if (unixTime > 0) {
+                final Date time = new Date(unixTime);
+                doc.addIntTerm(field, Integer.parseInt(COMPARABLE_DATE_FORMAT.format(time)));
+            }
+        } catch (SQLException e) {
             log.warning(e.getMessage());
         }
     }
