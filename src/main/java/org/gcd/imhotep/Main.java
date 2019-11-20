@@ -29,7 +29,7 @@ public class Main {
 
     private static final Pattern DATE_PATTERN = Pattern.compile("(\\d\\d\\d\\d)-(\\d\\d)-(\\d\\d)");
 
-    private static final SimpleDateFormat COMPARABLE_DATE_FORMAT = new SimpleDateFormat("yMd");
+    private static final SimpleDateFormat COMPARABLE_DATE_FORMAT = new SimpleDateFormat("yMMdd");
 
     public static void main(String[] args) throws ClassNotFoundException, IOException, SQLException, ParseException {
         BasicConfigurator.configure();
@@ -338,7 +338,7 @@ public class Main {
         try {
             final long unixTime = rs.getInt(field);
             if (unixTime > 0) {
-                final Date time = new Date(unixTime);
+                final Date time = new Date(unixTime * 1000L);
                 doc.addIntTerm(field, Integer.parseInt(COMPARABLE_DATE_FORMAT.format(time)));
             }
         } catch (SQLException e) {
