@@ -1,4 +1,4 @@
-package org.gcd.imhotep;
+package org.gcd.etl;
 
 public final class GcdConfiguration {
     private Gcdatabase gcdatabase;
