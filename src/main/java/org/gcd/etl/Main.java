@@ -1,4 +1,4 @@
-package org.gcd.imhotep;
+package org.gcd.etl;
 
 import java.io.File;
 import java.io.IOException;

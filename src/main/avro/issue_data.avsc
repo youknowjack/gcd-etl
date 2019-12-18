@@ -1,6 +1,6 @@
 {
 "type": "record",
-"namespace": "org.gcd.imhotep",
+"namespace": "org.gcd.etl",
 "name": "GcdIssueData",
 "fields": [
   { "name": "unix_time", "type": "long" },

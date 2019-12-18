@@ -1,4 +1,4 @@
-package org.gcd.imhotep;
+package org.gcd.etl;
 
 /**
  * @author jack@indeed.com (Jack Humphrey)

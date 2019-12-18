@@ -1,9 +1,8 @@
-package org.gcd.imhotep;/**
+package org.gcd.etl;/**
  * @author jackh
  */
 
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
 
 import java.sql.Connection;
 import java.sql.ResultSet;
