@@ -3,3 +3,4 @@ index/
 target/
 *.pem
 *.iml
+src/main/java/org/gcd/imhotep/GcdIssueData.java
