@@ -11,6 +11,7 @@ import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.IntConsumer;
 import java.util.function.LongConsumer;
@@ -63,10 +64,12 @@ public class Main {
         log.info("Loading documents from GCD...");
         final Connection conn = getConnection(config.getGcdatabase());
         final GcdMetadata metadata = GcdMetadata.Builder.build(conn);
+        final Map<Long, GcdStoryCredit> storyCredits = GcdStoryCredit.loadAllStoryCredits(conn);
+        log.info("Loaded credit details for " + storyCredits.size() + " stories");
         switch (outputType) {
             case FLAMDEX:
                 final SimpleFlamdexDocWriter flamdexWriter = getFlamdexWriter(indexName);
-                final int fcount = extractDataToFlamdex(conn, metadata, flamdexWriter, timestamp);
+                final int fcount = extractDataToFlamdex(conn, metadata, storyCredits, flamdexWriter, timestamp);
                 conn.close();
                 flamdexWriter.close();
                 log.info("Wrote " + fcount + " documents from GCD database; building sqar...");
@@ -74,7 +77,7 @@ public class Main {
                 break;
 
             case PARQUET:
-                final int pcount = extractDataToParquet(conn, metadata, date, indexName, timestamp);
+                final int pcount = extractDataToParquet(conn, metadata, storyCredits, date, indexName, timestamp);
                 conn.close();
                 log.info("Wrote " + pcount + " documents from GCD database");
                 break;
@@ -204,7 +207,13 @@ public class Main {
         "  LEFT OUTER JOIN gcd_brand AS brand ON issue.brand_id=brand.id\n" +
         "  LEFT OUTER JOIN gcd_story AS story ON story.issue_id=issue.id";
 
-    private static int extractDataToFlamdex(final Connection conn, final GcdMetadata metadata, final SimpleFlamdexDocWriter writer, final long unixTime)
+    private static int extractDataToFlamdex(
+            final Connection conn,
+            final GcdMetadata metadata,
+            final Map<Long, GcdStoryCredit> storyCredits,
+            final SimpleFlamdexDocWriter writer,
+            final long unixTime
+    )
             throws SQLException, IOException {
         int count = 0;
         final Statement st = conn.createStatement();
@@ -283,12 +292,23 @@ public class Main {
                     addOptionalString(rs, "story_feature", feature -> doc.addStringTerm("story_feature", feature));
                     addOptionalInt(rs, "story_sequence_number", num -> doc.addIntTerm("story_sequence_number", num));
                     addOptionalInt(rs, "story_page_count", pageCount -> doc.addIntTerm("story_page_count", pageCount));
-                    addOptionalMultiString(rs, "story_script", scriptors -> doc.addStringTerms("story_script", scriptors));
-                    addOptionalMultiString(rs, "story_pencils", artists -> doc.addStringTerms("story_pencils", artists));
-                    addOptionalMultiString(rs, "story_inks", inkers -> doc.addStringTerms("story_inks", inkers));
-                    addOptionalMultiString(rs, "story_colors", colorists -> doc.addStringTerms("story_colors", colorists));
-                    addOptionalMultiString(rs, "story_letters", letterers -> doc.addStringTerms("story_letters", letterers));
-                    addOptionalMultiString(rs, "story_editing", editors -> doc.addStringTerms("story_editing", editors));
+                    final long storyId = rs.getLong("story_id");
+                    final GcdStoryCredit credit = storyCredits.get(storyId);
+                    if (credit != null) {
+                        addOptionalCredit(credit,
+                                (field, terms) -> doc.addStringTerms(field, terms), (field, terms) -> doc.addIntTerms(field, terms));
+
+                        doc.addStringTerm("story_credit_source", "gcd_story_credit");
+                    } else {
+                        addOptionalMultiString(rs, "story_script", scriptors -> doc.addStringTerms("story_script", scriptors));
+                        addOptionalMultiString(rs, "story_pencils", artists -> doc.addStringTerms("story_pencils", artists));
+                        addOptionalMultiString(rs, "story_inks", inkers -> doc.addStringTerms("story_inks", inkers));
+                        addOptionalMultiString(rs, "story_colors", colorists -> doc.addStringTerms("story_colors", colorists));
+                        addOptionalMultiString(rs, "story_letters", letterers -> doc.addStringTerms("story_letters", letterers));
+                        addOptionalMultiString(rs, "story_editing", editors -> doc.addStringTerms("story_editing", editors));
+
+                        doc.addStringTerm("story_credit_source", "gcd_story");
+                    }
                     addOptionalMultiString(rs, "story_genre", genres -> doc.addStringTerms("story_genre", genres));
                     addOptionalMultiString(rs, "story_characters", characters -> doc.addStringTerms("story_characters", characters));
                     addOptionalStringFromId(rs, "strtypeid", metadata.getStoryTypeMap(), type -> doc.addStringTerm("story_type", type));
@@ -312,8 +332,14 @@ public class Main {
         return count;
     }
 
-
-    private static int extractDataToParquet(final Connection conn, final GcdMetadata metadata, final String date, final String indexName, final long unixTime)
+    private static int extractDataToParquet(
+            final Connection conn,
+            final GcdMetadata metadata,
+            Map<Long, GcdStoryCredit> storyCredits,
+            final String date,
+            final String indexName,
+            final long unixTime
+    )
             throws SQLException, IOException {
         int count = 0;
         final Statement st = conn.createStatement();
@@ -395,12 +421,35 @@ public class Main {
                     addOptionalString(rs, "story_feature", feature -> doc.setStoryFeature(feature));
                     addOptionalInt(rs, "story_sequence_number", num -> doc.setStorySequenceNumber(num));
                     addOptionalInt(rs, "story_page_count", pageCount -> doc.setStoryPageCount(pageCount));
-                    addOptionalMultiString(rs, "story_script", scriptors -> doc.setStoryScript(scriptors));
-                    addOptionalMultiString(rs, "story_pencils", artists -> doc.setStoryPencils(artists));
-                    addOptionalMultiString(rs, "story_inks", inkers -> doc.setStoryInks(inkers));
-                    addOptionalMultiString(rs, "story_colors", colorists -> doc.setStoryColors(colorists));
-                    addOptionalMultiString(rs, "story_letters", letterers -> doc.setStoryLetters(letterers));
-                    addOptionalMultiString(rs, "story_editing", editors -> doc.setStoryEditing(editors));
+                    final long storyId = rs.getLong("story_id");
+                    final GcdStoryCredit credit = storyCredits.get(storyId);
+                    if (credit != null) {
+                        doc.setStoryScript(credit.getNames(GcdStoryCredit.CreditType.SCRIPT));
+                        //doc.addIntTerms("story_script_creator_id", credit.getIds(GcdStoryCredit.CreditType.SCRIPT));
+                        doc.setStoryPencils(credit.getNames(GcdStoryCredit.CreditType.PENCILS));
+                        //doc.addIntTerms("story_pencils_creator_id", credit.getIds(GcdStoryCredit.CreditType.PENCILS));
+                        doc.setStoryInks(credit.getNames(GcdStoryCredit.CreditType.INKS));
+                        //doc.addIntTerms("story_inks_creator_id", credit.getIds(GcdStoryCredit.CreditType.INKS));
+                        doc.setStoryColors(credit.getNames(GcdStoryCredit.CreditType.COLORS));
+                        //doc.addIntTerms("story_colors_creator_id", credit.getIds(GcdStoryCredit.CreditType.COLORS));
+                        doc.setStoryLetters(credit.getNames(GcdStoryCredit.CreditType.LETTERS));
+                        //doc.addIntTerms("story_letters_creator_id", credit.getIds(GcdStoryCredit.CreditType.LETTERS));
+                        doc.setStoryEditing(credit.getNames(GcdStoryCredit.CreditType.STORY_EDITING));
+                        //doc.addIntTerms("story_editing_creator_id", credit.getIds(GcdStoryCredit.CreditType.STORY_EDITING));
+                        //doc.addStringTerms("story_painting", credit.getNames(GcdStoryCredit.CreditType.PAINTING));
+                        //doc.addIntTerms("story_painting_creator_id", credit.getIds(GcdStoryCredit.CreditType.PAINTING));
+
+                        //doc.setStoryCreditSource("gcd_story_credit");
+                    } else {
+                        addOptionalMultiString(rs, "story_script", scriptors -> doc.setStoryScript(scriptors));
+                        addOptionalMultiString(rs, "story_pencils", artists -> doc.setStoryPencils(artists));
+                        addOptionalMultiString(rs, "story_inks", inkers -> doc.setStoryInks(inkers));
+                        addOptionalMultiString(rs, "story_colors", colorists -> doc.setStoryColors(colorists));
+                        addOptionalMultiString(rs, "story_letters", letterers -> doc.setStoryLetters(letterers));
+                        addOptionalMultiString(rs, "story_editing", editors -> doc.setStoryEditing(editors));
+
+                        //doc.setStoryCreditSource("gcd_story");
+                    }
                     addOptionalMultiString(rs, "story_genre", genres -> doc.setStoryGenre(genres));
                     addOptionalMultiString(rs, "story_characters", characters -> doc.setStoryCharacters(characters));
                     addOptionalStringFromId(rs, "strtypeid", metadata.getStoryTypeMap(), type -> doc.setStoryType(type));
@@ -424,6 +473,20 @@ public class Main {
         st.close();
         conn.close();
         return count;
+    }
+
+    private static void addOptionalCredit(GcdStoryCredit credit,
+            BiConsumer<String, List<CharSequence>> nameConsumer, BiConsumer<String, List<Long>> idConsumer) {
+        for (GcdStoryCredit.CreditType type : GcdStoryCredit.CreditType.values()) {
+            if (type.getField() != null) {
+                final List<CharSequence> creditNames = credit.getNames(type);
+                if (!creditNames.isEmpty()) {
+                    nameConsumer.accept(type.getField(), creditNames);
+                    final List<Long> creditIds = credit.getIds(type);
+                    idConsumer.accept(type.getField() + "_creator_id", creditIds);
+                }
+            }
+        }
     }
 
     private static String[] addOptionalMultiString(ResultSet rs, String field, Consumer<List<CharSequence>> consumer) throws SQLException {
