@@ -425,21 +425,21 @@ public class Main {
                     final GcdStoryCredit credit = storyCredits.get(storyId);
                     if (credit != null) {
                         doc.setStoryScript(credit.getNames(GcdStoryCredit.CreditType.SCRIPT));
-                        //doc.addIntTerms("story_script_creator_id", credit.getIds(GcdStoryCredit.CreditType.SCRIPT));
+                        doc.setStoryScriptCreatorId(credit.getIds(GcdStoryCredit.CreditType.SCRIPT));
                         doc.setStoryPencils(credit.getNames(GcdStoryCredit.CreditType.PENCILS));
-                        //doc.addIntTerms("story_pencils_creator_id", credit.getIds(GcdStoryCredit.CreditType.PENCILS));
+                        doc.setStoryPencilsCreatorId(credit.getIds(GcdStoryCredit.CreditType.PENCILS));
                         doc.setStoryInks(credit.getNames(GcdStoryCredit.CreditType.INKS));
-                        //doc.addIntTerms("story_inks_creator_id", credit.getIds(GcdStoryCredit.CreditType.INKS));
+                        doc.setStoryInksCreatorId(credit.getIds(GcdStoryCredit.CreditType.INKS));
                         doc.setStoryColors(credit.getNames(GcdStoryCredit.CreditType.COLORS));
-                        //doc.addIntTerms("story_colors_creator_id", credit.getIds(GcdStoryCredit.CreditType.COLORS));
+                        doc.setStoryColorsCreatorId(credit.getIds(GcdStoryCredit.CreditType.COLORS));
                         doc.setStoryLetters(credit.getNames(GcdStoryCredit.CreditType.LETTERS));
-                        //doc.addIntTerms("story_letters_creator_id", credit.getIds(GcdStoryCredit.CreditType.LETTERS));
+                        doc.setStoryLettersCreatorId(credit.getIds(GcdStoryCredit.CreditType.LETTERS));
                         doc.setStoryEditing(credit.getNames(GcdStoryCredit.CreditType.STORY_EDITING));
-                        //doc.addIntTerms("story_editing_creator_id", credit.getIds(GcdStoryCredit.CreditType.STORY_EDITING));
-                        //doc.addStringTerms("story_painting", credit.getNames(GcdStoryCredit.CreditType.PAINTING));
-                        //doc.addIntTerms("story_painting_creator_id", credit.getIds(GcdStoryCredit.CreditType.PAINTING));
+                        doc.setStoryEditingCreatorId(credit.getIds(GcdStoryCredit.CreditType.STORY_EDITING));
+                        doc.setStoryPainting(credit.getNames(GcdStoryCredit.CreditType.PAINTING));
+                        doc.setStoryPaintingCreatorId(credit.getIds(GcdStoryCredit.CreditType.PAINTING));
 
-                        //doc.setStoryCreditSource("gcd_story_credit");
+                        doc.setStoryCreditSource("gcd_story_credit");
                     } else {
                         addOptionalMultiString(rs, "story_script", scriptors -> doc.setStoryScript(scriptors));
                         addOptionalMultiString(rs, "story_pencils", artists -> doc.setStoryPencils(artists));
@@ -448,7 +448,7 @@ public class Main {
                         addOptionalMultiString(rs, "story_letters", letterers -> doc.setStoryLetters(letterers));
                         addOptionalMultiString(rs, "story_editing", editors -> doc.setStoryEditing(editors));
 
-                        //doc.setStoryCreditSource("gcd_story");
+                        doc.setStoryCreditSource("gcd_story");
                     }
                     addOptionalMultiString(rs, "story_genre", genres -> doc.setStoryGenre(genres));
                     addOptionalMultiString(rs, "story_characters", characters -> doc.setStoryCharacters(characters));
