@@ -1,6 +1,4 @@
-package org.gcd.etl;/**
- * @author jackh
- */
+package org.gcd.etl;
 
 import com.google.common.collect.ImmutableMap;
 
