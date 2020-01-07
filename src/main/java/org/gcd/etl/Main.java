@@ -253,7 +253,7 @@ public class Main {
                 addOptionalInt(rs, "series_year_ended", ended -> doc.addIntTerm("series_year_ended", ended));
                 addOptionalInt(rs, "series_is_current", iscur -> doc.addIntTerm("series_is_current", iscur));
                 addOptionalStringFromId(rs, "scountryid", metadata.getCountryCodeMap(), code -> doc.addStringTerm("series_country_code", code));
-                addOptionalStringFromId(rs, "slangid", metadata.getCountryCodeMap(), code -> doc.addStringTerm("series_language_code", code));
+                addOptionalStringFromId(rs, "slangid", metadata.getLanguageCodeMap(), code -> doc.addStringTerm("series_language_code", code));
                 addOptionalInt(rs, "series_has_gallery", hasgal -> doc.addIntTerm("series_has_gallery", hasgal));
                 addOptionalInt(rs, "series_is_comics_publication", iscomics -> doc.addIntTerm("series_is_comics_publication", iscomics));
                 addOptionalString(rs, "series_color", color -> doc.addStringTerm("series_color", color));
