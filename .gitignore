@@ -4,3 +4,4 @@ target/
 *.pem
 *.iml
 src/main/java/org/gcd/etl/GcdIssueData.java
+creds.txt
