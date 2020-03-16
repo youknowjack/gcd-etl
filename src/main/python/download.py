@@ -9,6 +9,7 @@ LOGIN_URL = 'https://www.comics.org/accounts/login/'
 DOWNLOAD_URL = 'https://www.comics.org/download/'
 CSRF_NAME = 'csrfmiddlewaretoken'
 USER_AGENT = 'https://github.com/youknowjack/gcd-etl'
+DOWNLOAD_HISTORY_FILE = 'download_history.txt'
 
 logging.basicConfig()
 logging.getLogger().setLevel(logging.DEBUG)
@@ -20,6 +21,11 @@ with open(sys.argv[1], "r") as f:
     lines = f.readlines()
     username = lines[0].strip()
     password = lines[1].strip()
+
+history = []
+with open(DOWNLOAD_HISTORY_FILE) as f:
+    for timestamp in f.readlines():
+        history.append(timestamp.strip())
 
 with requests.Session() as session:
     headers = {
@@ -50,7 +56,10 @@ with requests.Session() as session:
         soup = BeautifulSoup(resp.text, 'html.parser')
         csrf_token = soup.find('input', attrs={'name': CSRF_NAME})['value']
         timestamp = soup.find(text=re.compile('MySQL:')).nextSibling.text
-        print(timestamp)
+        print("Current dump timestamp: %s" % timestamp)
+        if timestamp in history:
+            print("Already in download history")
+            sys.exit(1)
 
     filename = 'gcd-dump-%s.zip' % timestamp.replace(' ', '_')
     headers = {
@@ -75,5 +84,7 @@ with requests.Session() as session:
                     if chunk:
                         f.write(chunk)
             print("Downloaded %s" % filename)
+            with open(DOWNLOAD_HISTORY_FILE, "a") as out:
+                out.write("%s\n" % timestamp)
 
 

@@ -5,3 +5,4 @@ target/
 *.iml
 src/main/java/org/gcd/etl/GcdIssueData.java
 creds.txt
+download_history.txt
