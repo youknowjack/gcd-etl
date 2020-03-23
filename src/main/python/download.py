@@ -1,4 +1,6 @@
 from bs4 import BeautifulSoup
+import boto3
+import json
 import logging
 import re
 import requests
@@ -11,16 +13,26 @@ CSRF_NAME = 'csrfmiddlewaretoken'
 USER_AGENT = 'https://github.com/youknowjack/gcd-etl'
 DOWNLOAD_HISTORY_FILE = 'download_history.txt'
 
+
+def get_secret():
+    secret_name = "comics.org"
+    region_name = "us-west-2"
+    aws = boto3.session.Session()
+    client = aws.client(service_name='secretsmanager', region_name=region_name)
+    get_secret_value_response = client.get_secret_value(SecretId=secret_name)
+    if 'SecretString' in get_secret_value_response:
+        secret = json.loads(get_secret_value_response['SecretString'])
+        return secret['username'], secret['password']
+    return None
+
+
 logging.basicConfig()
-logging.getLogger().setLevel(logging.DEBUG)
+logging.getLogger().setLevel(logging.INFO)
 requests_log = logging.getLogger("requests.packages.urllib3")
 requests_log.setLevel(logging.DEBUG)
 requests_log.propagate = True
 
-with open(sys.argv[1], "r") as f:
-    lines = f.readlines()
-    username = lines[0].strip()
-    password = lines[1].strip()
+(username, password) = get_secret()
 
 history = []
 with open(DOWNLOAD_HISTORY_FILE) as f:
