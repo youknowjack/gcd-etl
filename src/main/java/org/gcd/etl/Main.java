@@ -233,7 +233,7 @@ public class Main {
                 addOptionalDate(rs, "pubdateraw", date -> doc.addIntTerm("publication_date", date));
                 addOptionalString(rs, "price", price -> doc.addStringTerm("price_raw", price));
                 addOptionalMultiString(rs, "price", prices -> doc.addStringTerms("price", prices));
-                addOptionalInt(rs, "page_count", pageCount -> doc.addIntTerm("page_count", pageCount));
+                addIntWithDefault(rs, "page_count", -1, pageCount -> doc.addIntTerm("page_count", pageCount));
                 addOptionalString(rs, "indicia_frequency", freq -> doc.addStringTerm("indicia_frequency", freq));
                 addOptionalString(rs, "isbn", isbn -> doc.addStringTerm("isbn", isbn));
                 addOptionalString(rs, "variant_name", name -> doc.addStringTerm("variant_name", name));
@@ -249,8 +249,8 @@ public class Main {
                 addOptionalDateFromTimestamp(rs, "modified", modified -> doc.addIntTerm("modified", modified));
                 addLong(rs, "series_id", id -> doc.addIntTerm("series_id", id));
                 addOptionalString(rs, "series_name", name -> doc.addStringTerm("series_name", name));
-                addOptionalInt(rs, "series_year_began", began -> doc.addIntTerm("series_year_began", began));
-                addOptionalInt(rs, "series_year_ended", ended -> doc.addIntTerm("series_year_ended", ended));
+                addIntWithDefault(rs, "series_year_began", -1, began -> doc.addIntTerm("series_year_began", began));
+                addIntWithDefault(rs, "series_year_ended", -1, ended -> doc.addIntTerm("series_year_ended", ended));
                 addOptionalInt(rs, "series_is_current", iscur -> doc.addIntTerm("series_is_current", iscur));
                 addOptionalStringFromId(rs, "scountryid", metadata.getCountryCodeMap(), code -> doc.addStringTerm("series_country_code", code));
                 addOptionalStringFromId(rs, "slangid", metadata.getLanguageCodeMap(), code -> doc.addStringTerm("series_language_code", code));
@@ -275,8 +275,8 @@ public class Main {
                 addOptionalString(rs, "indicia_publisher_name", name -> doc.addStringTerm("indicia_publisher_name", name));
                 addOptionalStringFromId(rs, "indpubcountryid", metadata.getCountryCodeMap(), code -> doc.addStringTerm("indicia_publisher_country_code", code));
                 addOptionalLong(rs, "indicia_publisher_parent_id", id -> doc.addIntTerm("indicia_publisher_parent_id", id));
-                addOptionalInt(rs, "indicia_publisher_year_began", began -> doc.addIntTerm("indicia_publisher_year_began", began));
-                addOptionalInt(rs, "indicia_publisher_year_ended", ended -> doc.addIntTerm("indicia_publisher_year_ended", ended));
+                addIntWithDefault(rs, "indicia_publisher_year_began", -1, began -> doc.addIntTerm("indicia_publisher_year_began", began));
+                addIntWithDefault(rs, "indicia_publisher_year_ended", -1, ended -> doc.addIntTerm("indicia_publisher_year_ended", ended));
                 addOptionalInt(rs, "indicia_publisher_is_surrogate", sur -> doc.addIntTerm("indicia_publisher_is_surrogate", sur));
                 addOptionalString(rs, "indicia_publisher_url", url -> doc.addStringTerm("indicia_publisher_url", url));
                 addOptionalDateFromTimestamp(rs, "indicia_publisher_created", created -> doc.addIntTerm("indicia_publisher_created", created));
@@ -290,8 +290,8 @@ public class Main {
                     addOptionalLong(rs, "story_id", id -> doc.addIntTerm("story_id", id));
                     addOptionalString(rs, "story_title", title -> doc.addStringTerm("story_title", title));
                     addOptionalString(rs, "story_feature", feature -> doc.addStringTerm("story_feature", feature));
-                    addOptionalInt(rs, "story_sequence_number", num -> doc.addIntTerm("story_sequence_number", num));
-                    addOptionalInt(rs, "story_page_count", pageCount -> doc.addIntTerm("story_page_count", pageCount));
+                    addIntWithDefault(rs, "story_sequence_number", -1, num -> doc.addIntTerm("story_sequence_number", num));
+                    addIntWithDefault(rs, "story_page_count", -1, pageCount -> doc.addIntTerm("story_page_count", pageCount));
                     final long storyId = rs.getLong("story_id");
                     final GcdStoryCredit credit = storyCredits.get(storyId);
                     if (credit != null) {
@@ -518,7 +518,35 @@ public class Main {
     }
 
     private static void addLong(final ResultSet rs, final String field, final LongConsumer consumer) throws SQLException {
-        consumer.accept(rs.getInt(field));
+        consumer.accept(rs.getLong(field));
+    }
+
+    private static void addLongWithDefault(final ResultSet rs, final String field, final long defaultValue, final LongConsumer consumer) {
+        try {
+            final Long value = rs.getLong(field);
+            if (value == null) {
+                consumer.accept(defaultValue);
+            } else {
+                consumer.accept(value);
+            }
+        } catch (SQLException e) {
+            log.warn(e.getMessage());
+            consumer.accept(defaultValue);
+        }
+    }
+
+    private static void addIntWithDefault(final ResultSet rs, final String field, final int defaultValue, final LongConsumer consumer) {
+        try {
+            final Integer value = rs.getInt(field);
+            if (value == null) {
+                consumer.accept(defaultValue);
+            } else {
+                consumer.accept(value);
+            }
+        } catch (SQLException e) {
+            log.warn(e.getMessage());
+            consumer.accept(defaultValue);
+        }
     }
 
     private static void addOptionalInt(final ResultSet rs, final String field, final IntConsumer consumer) {
@@ -531,7 +559,7 @@ public class Main {
 
     private static void addOptionalLong(final ResultSet rs, final String field, final LongConsumer consumer) {
         try {
-            consumer.accept(rs.getInt(field));
+            consumer.accept(rs.getLong(field));
         } catch (SQLException e) {
             log.warn(e.getMessage());
         }
@@ -543,11 +571,15 @@ public class Main {
             final Matcher m = DATE_PATTERN.matcher(dateString);
             if (m.matches()) {
                 consumer.accept(Integer.parseInt(String.format("%s%s%s", m.group(1), m.group(2), m.group(3))));
+            } else {
+                consumer.accept(-1);
             }
         } catch (SQLException e) {
             log.warn(e.getMessage());
+            consumer.accept(-1);
         } catch (NumberFormatException e) {
             log.warn(e.getMessage());
+            consumer.accept(-1);
         }
     }
 
@@ -557,9 +589,12 @@ public class Main {
             if (unixTime > 0) {
                 final Date time = new Date(unixTime * 1000L);
                 consumer.accept(Integer.parseInt(COMPARABLE_DATE_FORMAT.format(time)));
+            } else {
+                consumer.accept(-1);
             }
         } catch (SQLException e) {
             log.warn(e.getMessage());
+            consumer.accept(-1);
         }
     }
 }
