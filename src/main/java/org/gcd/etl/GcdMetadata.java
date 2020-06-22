@@ -45,8 +45,14 @@ public class GcdMetadata {
     }
 
     public static class Builder {
-        public static GcdMetadata build(final Connection conn) throws SQLException {
-            return new GcdMetadata(loadCountries(conn), loadLanguages(conn), loadPublicationTypes(conn), loadStoryTypes(conn));
+        public static GcdMetadata build(final Connection conn, final GcdSchema schema) throws SQLException {
+            final Map<Integer, String> publicationTypes;
+            if (schema.isPublicationType()) {
+                publicationTypes = loadPublicationTypes(conn);
+            } else {
+                publicationTypes = new ImmutableMap.Builder<Integer, String>().build();
+            }
+            return new GcdMetadata(loadCountries(conn), loadLanguages(conn), publicationTypes, loadStoryTypes(conn));
         }
 
         private static Map<Integer, String> loadStoryTypes(Connection conn) throws SQLException {

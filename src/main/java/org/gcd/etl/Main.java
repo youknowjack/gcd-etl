@@ -1,5 +1,7 @@
 package org.gcd.etl;
 
+import com.google.common.collect.ImmutableMap;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -63,13 +65,19 @@ public class Main {
 
         log.info("Loading documents from GCD...");
         final Connection conn = getConnection(config.getGcdatabase());
-        final GcdMetadata metadata = GcdMetadata.Builder.build(conn);
-        final Map<Long, GcdStoryCredit> storyCredits = GcdStoryCredit.loadAllStoryCredits(conn);
-        log.info("Loaded credit details for " + storyCredits.size() + " stories");
+        final GcdSchema schema = config.getGcdatabase().getGcdSchema();
+        final GcdMetadata metadata = GcdMetadata.Builder.build(conn, schema);
+        final Map<Long, GcdStoryCredit> storyCredits;
+        if (schema.isStoryCredit()) {
+            storyCredits = GcdStoryCredit.loadAllStoryCredits(conn);
+            log.info("Loaded credit details for " + storyCredits.size() + " stories");
+        } else {
+            storyCredits = new ImmutableMap.Builder<Long, GcdStoryCredit>().build();
+        }
         switch (outputType) {
             case FLAMDEX:
                 final SimpleFlamdexDocWriter flamdexWriter = getFlamdexWriter(indexName);
-                final int fcount = extractDataToFlamdex(conn, metadata, storyCredits, flamdexWriter, timestamp);
+                final int fcount = extractDataToFlamdex(conn, metadata, schema, storyCredits, flamdexWriter, timestamp);
                 conn.close();
                 flamdexWriter.close();
                 log.info("Wrote " + fcount + " documents from GCD database; building sqar...");
@@ -77,7 +85,7 @@ public class Main {
                 break;
 
             case PARQUET:
-                final int pcount = extractDataToParquet(conn, metadata, storyCredits, date, indexName, timestamp);
+                final int pcount = extractDataToParquet(conn, metadata, schema, storyCredits, date, indexName, timestamp);
                 conn.close();
                 log.info("Wrote " + pcount + " documents from GCD database");
                 break;
@@ -207,9 +215,27 @@ public class Main {
         "  LEFT OUTER JOIN gcd_brand AS brand ON issue.brand_id=brand.id\n" +
         "  LEFT OUTER JOIN gcd_story AS story ON story.issue_id=issue.id";
 
+    private static String getGcdQuery(final GcdSchema schema) {
+        String query = GCD_QUERY;
+        if (!schema.isPublicationType()) {
+            query = query.replace("series.publication_type_id AS spubtypeid,", "");
+        }
+        if (!schema.isVolumeNotPrinted()) {
+            query = query.replace("issue.volume_not_printed,", "");
+        }
+        if (!schema.isSeriesIsSingleton()) {
+            query = query.replace("series.is_singleton AS series_is_singleton,", "");
+        }
+        if (!schema.isStoryFirstLine()) {
+            query = query.replace("story.first_line AS story_first_line,", "");
+        }
+        return query;
+    }
+
     private static int extractDataToFlamdex(
             final Connection conn,
             final GcdMetadata metadata,
+            final GcdSchema schema,
             final Map<Long, GcdStoryCredit> storyCredits,
             final SimpleFlamdexDocWriter writer,
             final long unixTime
@@ -217,7 +243,7 @@ public class Main {
             throws SQLException, IOException {
         int count = 0;
         final Statement st = conn.createStatement();
-        final ResultSet rs = st.executeQuery(GCD_QUERY);
+        final ResultSet rs = st.executeQuery(getGcdQuery(schema));
         while (rs.next()) {
             try {
                 final FlamdexDocument doc = new FlamdexDocument();
@@ -242,7 +268,9 @@ public class Main {
                 addOptionalString(rs, "title", title -> doc.addStringTerm("title", title));
                 addOptionalDate(rs, "onsaledateraw", date -> doc.addIntTerm("on_sale_date", date));
                 addOptionalString(rs, "rating", rating -> doc.addStringTerm("rating", rating));
-                addOptionalInt(rs, "volume_not_printed", notprinted -> doc.addIntTerm("volume_not_printed", notprinted));
+                if (schema.isVolumeNotPrinted()) {
+                    addOptionalInt(rs, "volume_not_printed", notprinted -> doc.addIntTerm("volume_not_printed", notprinted));
+                }
                 addOptionalMultiString(rs, "editing", editors -> doc.addStringTerms("editing", editors));
                 addOptionalString(rs, "notes", notes -> doc.addStringTerm("notes", notes));
                 addOptionalDateFromTimestamp(rs, "created", created -> doc.addIntTerm("created", created));
@@ -261,8 +289,12 @@ public class Main {
                 addOptionalString(rs, "series_paper_stock", stock -> doc.addStringTerm("series_paper_stock", stock));
                 addOptionalMultiString(rs, "series_binding", bindings -> doc.addStringTerms("series_binding", bindings));
                 addOptionalString(rs, "series_publishing_format", fmt -> doc.addStringTerm("series_publishing_format", fmt));
-                addOptionalStringFromId(rs, "spubtypeid", metadata.getPublicationTypeMap(), type -> doc.addStringTerm("series_publication_type", type));
-                addOptionalInt(rs, "series_is_singleton", sing -> doc.addIntTerm("series_is_singleton", sing));
+                if (schema.isPublicationType()) {
+                    addOptionalStringFromId(rs, "spubtypeid", metadata.getPublicationTypeMap(), type -> doc.addStringTerm("series_publication_type", type));
+                }
+                if (schema.isSeriesIsSingleton()) {
+                    addOptionalInt(rs, "series_is_singleton", sing -> doc.addIntTerm("series_is_singleton", sing));
+                }
                 addOptionalDateFromTimestamp(rs, "series_created", created -> doc.addIntTerm("series_created", created));
                 addOptionalDateFromTimestamp(rs, "series_modified", modified -> doc.addIntTerm("series_modified", modified));
                 addOptionalLong(rs, "publisher_id", id -> doc.addIntTerm("publisher_id", id));
@@ -313,7 +345,9 @@ public class Main {
                     addOptionalMultiString(rs, "story_characters", characters -> doc.addStringTerms("story_characters", characters));
                     addOptionalStringFromId(rs, "strtypeid", metadata.getStoryTypeMap(), type -> doc.addStringTerm("story_type", type));
                     addOptionalString(rs, "story_job_number", num -> doc.addStringTerm("story_job_number", num));
-                    addOptionalString(rs, "story_first_line", line -> doc.addStringTerm("story_first_line", line));
+                    if (schema.isStoryFirstLine()) {
+                        addOptionalString(rs, "story_first_line", line -> doc.addStringTerm("story_first_line", line));
+                    }
                     addOptionalDateFromTimestamp(rs, "story_created", created -> doc.addIntTerm("story_created", created));
                     addOptionalDateFromTimestamp(rs, "story_modified", modified -> doc.addIntTerm("story_modified", modified));
                 }
@@ -335,6 +369,7 @@ public class Main {
     private static int extractDataToParquet(
             final Connection conn,
             final GcdMetadata metadata,
+            final GcdSchema schema,
             Map<Long, GcdStoryCredit> storyCredits,
             final String date,
             final String indexName,
@@ -343,7 +378,7 @@ public class Main {
             throws SQLException, IOException {
         int count = 0;
         final Statement st = conn.createStatement();
-        final ResultSet rs = st.executeQuery(GCD_QUERY);
+        final ResultSet rs = st.executeQuery(getGcdQuery(schema));
         int part = 0;
         final int snapshot = Integer.parseInt(date.replaceAll("-", ""));
         ParquetWriter writer = getParquetWriter(indexName, snapshot, part);
@@ -371,7 +406,9 @@ public class Main {
                 addOptionalString(rs, "title", title -> doc.setTitle(title));
                 addOptionalDate(rs, "onsaledateraw", osdate -> doc.setOnSaleDate(osdate));
                 addOptionalString(rs, "rating", rating -> doc.setRating(rating));
-                addOptionalInt(rs, "volume_not_printed", vnp -> doc.setVolumeNotPrinted(vnp == 1));
+                if (schema.isVolumeNotPrinted()) {
+                    addOptionalInt(rs, "volume_not_printed", vnp -> doc.setVolumeNotPrinted(vnp == 1));
+                }
                 addOptionalMultiString(rs, "editing", editors -> doc.setEditing(editors));
                 addOptionalString(rs, "notes", notes -> doc.setNotes(notes));
                 addOptionalDateFromTimestamp(rs, "created", created -> doc.setCreated(created));
@@ -390,8 +427,12 @@ public class Main {
                 addOptionalString(rs, "series_paper_stock", stock -> doc.setSeriesPaperStock(stock));
                 addOptionalMultiString(rs, "series_binding", bindings -> doc.setSeriesBinding(bindings));
                 addOptionalString(rs, "series_publishing_format", fmt -> doc.setSeriesPublishingFormat(fmt));
-                addOptionalStringFromId(rs, "spubtypeid", metadata.getPublicationTypeMap(), type -> doc.setSeriesPublishingType(type));
-                addOptionalInt(rs, "series_is_singleton", sing -> doc.setSeriesIsSingleton(sing == 1));
+                if (schema.isPublicationType()) {
+                    addOptionalStringFromId(rs, "spubtypeid", metadata.getPublicationTypeMap(), type -> doc.setSeriesPublishingType(type));
+                }
+                if (schema.isSeriesIsSingleton()) {
+                    addOptionalInt(rs, "series_is_singleton", sing -> doc.setSeriesIsSingleton(sing == 1));
+                }
                 addOptionalDateFromTimestamp(rs, "series_created", created -> doc.setSeriesCreated(created));
                 addOptionalDateFromTimestamp(rs, "series_modified", modified -> doc.setSeriesModified(modified));
                 addOptionalLong(rs, "publisher_id", id -> doc.setPublisherId(id));
@@ -454,7 +495,9 @@ public class Main {
                     addOptionalMultiString(rs, "story_characters", characters -> doc.setStoryCharacters(characters));
                     addOptionalStringFromId(rs, "strtypeid", metadata.getStoryTypeMap(), type -> doc.setStoryType(type));
                     addOptionalString(rs, "story_job_number", num -> doc.setStoryJobNumber(num));
-                    addOptionalString(rs, "story_first_line", line -> doc.setStoryFirstLine(line));
+                    if (schema.isStoryFirstLine()) {
+                        addOptionalString(rs, "story_first_line", line -> doc.setStoryFirstLine(line));
+                    }
                     addOptionalDateFromTimestamp(rs, "story_created", created -> doc.setStoryCreated(created));
                     addOptionalDateFromTimestamp(rs, "story_modified", modified -> doc.setStoryModified(modified));
                 }
@@ -490,11 +533,15 @@ public class Main {
     }
 
     private static String[] addOptionalMultiString(ResultSet rs, String field, Consumer<List<CharSequence>> consumer) throws SQLException {
-        final String value = rs.getString(field);
-        if (value != null) {
-            String[] values = value.split("\\s*;\\s*");
-            consumer.accept(Arrays.asList(values));
-            return values;
+        try {
+            final String value = rs.getString(field);
+            if (value != null) {
+                String[] values = value.split("\\s*;\\s*");
+                consumer.accept(Arrays.asList(values));
+                return values;
+            }
+        } catch (SQLException e) {
+            log.warn(e.getMessage());
         }
         return new String[0];
     }
@@ -511,9 +558,13 @@ public class Main {
     }
 
     private static void addOptionalString(final ResultSet rs, final String field, final Consumer<String> consumer) throws SQLException {
-        final String value = rs.getString(field);
-        if (value != null) {
-            consumer.accept(value);
+        try {
+            final String value = rs.getString(field);
+            if (value != null) {
+                consumer.accept(value);
+            }
+        } catch (SQLException e) {
+            log.warn(e.getMessage());
         }
     }
 

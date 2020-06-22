@@ -5,6 +5,7 @@ public final class Gcdatabase {
     private String url;
     private String user;
     private String password;
+    private GcdSchema gcdSchema;
 
     public String getUrl() {
         return url;
@@ -30,8 +31,17 @@ public final class Gcdatabase {
         this.password = password;
     }
 
+    public GcdSchema getGcdSchema() {
+        return gcdSchema;
+    }
+
+    public void setGcdSchema(GcdSchema gcdSchema) {
+        this.gcdSchema = gcdSchema;
+    }
+
     @Override
     public String toString() {
-        return "Gcdatabase{" + "url='" + url + '\'' + ", user='" + user + '\'' + ", password='" + password + '\'' + '}';
+        return "Gcdatabase{" + "url='" + url + '\'' + ", user='" + user + '\'' + ", password='" + password + '\'' + ", schema=" +
+                gcdSchema + '}';
     }
 }
