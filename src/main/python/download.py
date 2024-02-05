@@ -67,7 +67,7 @@ with requests.Session() as session:
         resp.raise_for_status()
         soup = BeautifulSoup(resp.text, 'html.parser')
         csrf_token = soup.find('input', attrs={'name': CSRF_NAME})['value']
-        timestamp = soup.find(text=re.compile('MySQL:')).nextSibling.text
+        timestamp = soup.find(string=re.compile('MySQL:')).nextSibling.text
         print("Current dump timestamp: %s" % timestamp)
         if timestamp in history:
             print("Already in download history")
