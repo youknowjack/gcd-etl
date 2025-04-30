@@ -10,7 +10,8 @@ HOME_URL = 'https://www.comics.org'
 LOGIN_URL = 'https://www.comics.org/accounts/login/'
 DOWNLOAD_URL = 'https://www.comics.org/download/'
 CSRF_NAME = 'csrfmiddlewaretoken'
-USER_AGENT = 'https://github.com/youknowjack/gcd-etl'
+#USER_AGENT = 'https://github.com/youknowjack/gcd-etl'
+USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
 DOWNLOAD_HISTORY_FILE = 'download_history.txt'
 
 
