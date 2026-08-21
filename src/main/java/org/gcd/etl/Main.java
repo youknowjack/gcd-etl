@@ -377,7 +377,8 @@ public class Main {
     )
             throws SQLException, IOException {
         int count = 0;
-        final Statement st = conn.createStatement();
+        final Statement st = conn.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
+        st.setFetchSize(Integer.MIN_VALUE);
         final ResultSet rs = st.executeQuery(getGcdQuery(schema));
         int part = 0;
         final int snapshot = Integer.parseInt(date.replaceAll("-", ""));
@@ -387,12 +388,14 @@ public class Main {
                 final GcdIssueData doc = new GcdIssueData();
                 doc.setUnixTime(unixTime);
                 addLong(rs, "issue_id", id -> doc.setIssueId(id));
-                addOptionalString(rs, "issue_number_raw", num -> doc.setIssueNumberRaw(num));
                 final String number = rs.getString("issue_number_raw");
-                try {
-                    doc.setIssueNumber(Integer.parseInt(number));
-                } catch (NumberFormatException e) {
-                    // some numbers are not numeric in the data set, don't warn
+                if (number != null) {
+                    doc.setIssueNumberRaw(number);
+                    try {
+                        doc.setIssueNumber(Integer.parseInt(number));
+                    } catch (NumberFormatException e) {
+                        // some numbers are not numeric in the data set, don't warn
+                    }
                 }
                 addOptionalDate(rs, "pubdateraw", pubdate -> doc.setPublicationDate(pubdate));
                 addOptionalString(rs, "price", price -> doc.setPriceRaw(price));
@@ -548,9 +551,9 @@ public class Main {
 
     private static void addOptionalStringFromId(ResultSet rs, String rawField, Map<Integer, String> lookupMap, Consumer<String> consumer) {
         try {
-            final int id = rs.getInt(rawField);
-            if (lookupMap.containsKey(id)) {
-                consumer.accept(lookupMap.get(id));
+            final String value = lookupMap.get(rs.getInt(rawField));
+            if (value != null) {
+                consumer.accept(value);
             }
         } catch (SQLException e) {
             log.warn(e.getMessage());
@@ -588,12 +591,8 @@ public class Main {
 
     private static void addIntWithDefault(final ResultSet rs, final String field, final int defaultValue, final LongConsumer consumer) {
         try {
-            final Integer value = rs.getInt(field);
-            if (value == null) {
-                consumer.accept(defaultValue);
-            } else {
-                consumer.accept(value);
-            }
+            final int value = rs.getInt(field);
+            consumer.accept(rs.wasNull() ? defaultValue : value);
         } catch (SQLException e) {
             log.warn(e.getMessage());
             consumer.accept(defaultValue);
