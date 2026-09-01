@@ -11,6 +11,7 @@ public final class GcdSchema {
     private boolean seriesIsSingleton = true;
     private boolean storyFirstLine = true;
     private boolean storyCredit = true;
+    private boolean multiBrand = false;
 
     public boolean isPublicationType() {
         return publicationType;
@@ -50,6 +51,14 @@ public final class GcdSchema {
 
     public void setStoryCredit(boolean storyCredit) {
         this.storyCredit = storyCredit;
+    }
+
+    public boolean isMultiBrand() {
+        return multiBrand;
+    }
+
+    public void setMultiBrand(boolean multiBrand) {
+        this.multiBrand = multiBrand;
     }
 
     @java.lang.Override

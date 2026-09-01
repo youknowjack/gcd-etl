@@ -190,6 +190,8 @@ public class Main {
         "  brand.url AS brand_url, \n" +
         "  UNIX_TIMESTAMP(brand.created) AS brand_created, \n" +
         "  UNIX_TIMESTAMP(brand.modified) AS brand_modified, \n" +
+        "  issue_brand.all_brand_names, \n" +
+        "  issue_brand.brand_count, \n" +
         "  story.id AS story_id, \n" +
         "  story.title AS story_title, \n" +
         "  story.feature AS story_feature, \n" +
@@ -229,6 +231,14 @@ public class Main {
         }
         if (!schema.isStoryFirstLine()) {
             query = query.replace("story.first_line AS story_first_line,", "");
+        }
+        if (!schema.isMultiBrand()) {
+            query = query.replace("  issue_brand.all_brand_names, \n", "");
+            query = query.replace("  issue_brand.brand_count, \n", "");
+            query = query.replace(
+                "  LEFT OUTER JOIN (SELECT ibe.issue_id, MIN(ibe.brand_id) AS brand_id, GROUP_CONCAT(b.name ORDER BY b.name SEPARATOR ';') AS all_brand_names, COUNT(*) AS brand_count FROM gcd_issue_brand_emblem ibe JOIN gcd_brand b ON b.id=ibe.brand_id GROUP BY ibe.issue_id) AS issue_brand ON issue_brand.issue_id=issue.id\n" +
+                "  LEFT OUTER JOIN gcd_brand AS brand ON brand.id=issue_brand.brand_id\n",
+                "  LEFT OUTER JOIN gcd_brand AS brand ON issue.brand_id=brand.id\n");
         }
         return query;
     }
@@ -319,8 +329,10 @@ public class Main {
                 addOptionalString(rs, "brand_url", url -> doc.addStringTerm("brand_url", url));
                 addOptionalDateFromTimestamp(rs, "brand_created", created -> doc.addIntTerm("brand_created", created));
                 addOptionalDateFromTimestamp(rs, "brand_modified", modified -> doc.addIntTerm("brand_modified", modified));
-                addOptionalMultiString(rs, "all_brand_names", names -> doc.addStringTerms("brand_names", names));
-                addOptionalInt(rs, "brand_count", n -> doc.addIntTerm("brand_count", n));
+                if (schema.isMultiBrand()) {
+                    addOptionalMultiString(rs, "all_brand_names", names -> doc.addStringTerms("brand_names", names));
+                    addOptionalInt(rs, "brand_count", n -> doc.addIntTerm("brand_count", n));
+                }
                 if (rs.getObject("story_id") != null) {
                     addOptionalLong(rs, "story_id", id -> doc.addIntTerm("story_id", id));
                     addOptionalString(rs, "story_title", title -> doc.addStringTerm("story_title", title));
@@ -462,8 +474,10 @@ public class Main {
                 addOptionalString(rs, "brand_url", url -> doc.setBrandUrl(url));
                 addOptionalDateFromTimestamp(rs, "brand_created", created -> doc.setBrandCreated(created));
                 addOptionalDateFromTimestamp(rs, "brand_modified", modified -> doc.setBrandModified(modified));
-                addOptionalMultiString(rs, "all_brand_names", names -> doc.setBrandNames(names));
-                addOptionalInt(rs, "brand_count", n -> doc.setBrandCount(n));
+                if (schema.isMultiBrand()) {
+                    addOptionalMultiString(rs, "all_brand_names", names -> doc.setBrandNames(names));
+                    addOptionalInt(rs, "brand_count", n -> doc.setBrandCount(n));
+                }
                 if (rs.getObject("story_id") != null) {
                     addOptionalLong(rs, "story_id", id -> doc.setStoryId(id));
                     addOptionalString(rs, "story_title", title -> doc.setStoryTitle(title));
