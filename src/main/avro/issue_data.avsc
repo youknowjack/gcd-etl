@@ -63,6 +63,8 @@
   { "name": "brand_url", "type": ["null", "string"], "default": null },
   { "name": "brand_created", "type": ["null", "int"], "default": null },
   { "name": "brand_modified", "type": ["null", "int"], "default": null },
+  { "name": "brand_names", "type": ["null", { "type": "array", "items": "string" }], "default": null },
+  { "name": "brand_count", "type": ["null", "int"], "default": null },
   { "name": "story_id", "type": ["null", "long"], "default": null },
   { "name": "story_title", "type": ["null", "string"], "default": null },
   { "name": "story_feature", "type": ["null", "string"], "default": null },
