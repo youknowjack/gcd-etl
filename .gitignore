@@ -1,7 +1,49 @@
 config*.yml
+*-template.yml
+hive-*.sql
+hdfs-logs-*
+quickwit-*.yaml
+*.bak
 index/
 target/
 *.pem
 *.iml
 src/main/java/org/gcd/etl/GcdIssueData.java
 download_history.txt
+
+# Secrets
+.mypw
+
+# Data directories
+gcd-parquet/
+gcd-db/
+metastore_db/
+venv/
+tmp-queries/
+
+# Logs and temp files
+*.log
+*.log.gz
+*.err
+*.tmp
+derby.log
+wget-log*
+ok.tmp
+classpath.txt
+cpnew.txt
+hive
+*.hive
+*.iml
+
+# Installers / binaries
+*.pkg
+kapow_*
+
+# IDE
+.idea/
+
+# Misc
+page_*.md
+out.csv
+ses.txt
+sample.json
