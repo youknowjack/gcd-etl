@@ -2,128 +2,134 @@
 
 ETL pipeline for the [Grand Comics Database](https://www.comics.org/) (GCD) that powers [gcdata.org](https://gcdata.org) — a comic book data analytics platform offering SQL query and dashboard capabilities over GCD snapshots.
 
-Downloads periodic GCD MySQL snapshot dumps, loads them into a local MySQL instance, and exports to Parquet (queryable via Presto/Hive/Athena) or Flamdex format (for Imhotep, now inactive).
+Downloads periodic GCD MySQL snapshot dumps, loads them into a local MySQL instance, and exports to Parquet. The Parquet files are queried locally via DuckDB (powering a self-hosted Redash instance) and served publicly via DuckDB WASM at [gcdata.org/explore](https://gcdata.org/explore/).
 
 ## Overview
 
-Each GCD snapshot is a MySQL dump of the full database as of a given date. This tool joins the core tables (issue, series, publisher, indicia publisher, brand, story, story credits) and writes one denormalized record per story per issue. The output is partitioned by snapshot date so all historical snapshots can be queried together using Presto or Athena.
+Each GCD snapshot is a MySQL dump of the full database as of a given date. The pipeline joins the core tables (issue, series, publisher, indicia publisher, brand, story, story credits) and writes one denormalized record per story per issue. Output is partitioned by snapshot date so all historical snapshots can be queried together.
 
-The resulting dataset is what backs [gcdata.org](https://gcdata.org), where a self-hosted Redash instance lets users author SQL queries and build dashboards over the data. Data and queries are licensed [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/), based on GCD's work.
+The resulting dataset backs [gcdata.org](https://gcdata.org), where:
+- A self-hosted **Redash** instance (backed by **DuckDB**) lets users author SQL queries and build dashboards
+- A public **[/explore](https://gcdata.org/explore/)** page runs DuckDB WASM in the browser — no account needed
+
+Data and queries are licensed [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/), based on GCD's work.
+
+## Architecture
+
+```
+GCD MySQL dump
+      │
+      ▼
+pipeline.py (Python + pyarrow)
+      │
+      ▼
+gcd-parquet/snapshot=YYYYMMDD/*.parquet  (local + S3)
+      │
+      ├─► DuckDB (local) ──► Redash (Docker)
+      │
+      └─► DuckDB WASM (browser) ◄── parquet.gcdata.org
+```
 
 ## Prerequisites
 
-- Java 8, Maven
+- Python 3.9+, with `pyarrow`, `mysql-connector-python`, `boto3`, `pyyaml`
 - MySQL (local instance with a `gcd` user)
+- DuckDB CLI (`brew install duckdb`)
 - AWS CLI (for S3 uploads)
-- Python 3 + dependencies in `requirements.txt` (optional, for query management scripts)
 
-## Build
-
-```sh
-mvn package
-mvn dependency:build-classpath -Dmdep.outputFile=classpath.txt
-```
-
-## Configuration
-
-Each snapshot needs a YAML config file. Copy from the appropriate year template:
+Install Python dependencies:
 
 ```sh
-# Example: config20260915.yml is generated automatically by run-all.sh
-sed "s/DATESTAMP/20260915/" 2026-template.yml > config20260915.yml
+pip install pyarrow mysql-connector-python boto3 pyyaml
 ```
 
-**`example.yml`** shows the required fields:
-
-```yaml
-gcdatabase:
-  url: jdbc:mysql://localhost/gcdDATESTAMP?serverTimezone=UTC
-  user: gcd
-  password: yourpassword
-  gcdSchema:
-    storyCredit: true   # use gcd_story_credit table (vs. legacy gcd_story fields)
-    multiBrand: true    # use gcd_issue_brand_emblem many-to-many join
-```
-
-### Schema flags
-
-Older GCD snapshots are missing columns added in later schema versions. These flags suppress SQL for columns that don't exist in a given snapshot:
-
-| Flag | Default | Notes |
-|---|---|---|
-| `publicationType` | true | `series.publication_type_id` |
-| `volumeNotPrinted` | true | `issue.volume_not_printed` |
-| `seriesIsSingleton` | true | `series.is_singleton` |
-| `storyFirstLine` | true | `story.first_line` |
-| `storyCredit` | true | Use `gcd_story_credit` table for creator credits |
-| `multiBrand` | false | Use `gcd_issue_brand_emblem` many-to-many brand join |
-
-## Running a single snapshot
+## Running a snapshot
 
 ```sh
-# Export to Parquet
-./run-parquet.sh 20260915
-
-# Export to Flamdex/Imhotep (uncomment in run-all.sh if needed)
-./run-flamdex.sh 20260915
-```
-
-`run-parquet.sh` takes a datestamp (YYYYMMDD), converts it to `YYYY-MM-DD`, and calls:
-
-```sh
-java -cp ... org.gcd.etl.Main config20260915.yml 2026-09-15 gcd-parquet PARQUET
-```
-
-Output lands in `gcd-parquet/snapshot=20260915/part-0000.parquet` (Snappy-compressed).
-
-## Full pipeline: `run-all.sh`
-
-```sh
-export mysqlpassword=yourpassword   # or omit to be prompted
-./run-all.sh 2026-09-15
+./run-all.sh 2026-10-01
 ```
 
 Steps:
-1. Downloads the GCD dump ZIP for the given date (via `mac-download.sh`)
-2. Unzips and loads into a local `gcd20260915` MySQL database
-3. Generates `config20260915.yml` from the year template if missing
-4. Runs Parquet export
-5. Uploads Parquet files to HDFS (`upload-hdfs.sh`) and S3 (`aws s3 sync`)
-6. Drops the temporary MySQL database and removes the dump ZIP
+1. Downloads the GCD dump ZIP for the given date (`download.sh`)
+2. Loads it into a local `gcd20261001` MySQL database
+3. Runs `pipeline.py` to export Parquet
+4. Syncs Parquet files to S3 and registers the Athena partition
+5. Drops the temporary MySQL database and removes the dump ZIP
 
-## Athena / Presto table
+Or run just the Parquet export:
 
-`src/main/athena/gcdissuesnapshot.sql` defines the external table over `s3://gcd-parquet/`, partitioned by `snapshot` (int, YYYYMMDD). The same table is exposed through a Presto query engine at [gcdata.org](https://gcdata.org) via Redash. After uploading a new snapshot:
+```sh
+python src/main/python/pipeline.py --snapshot 2026-10-01
+```
+
+Output lands in `gcd-parquet/snapshot=20261001/part-0000.parquet` (Snappy-compressed, ~40 MB per snapshot across 4 part files).
+
+## DuckDB setup
+
+Create or refresh the local DuckDB database (a view over all local snapshots):
+
+```sh
+./setup-duckdb.sh
+```
+
+This creates `gcd-db/gcd.duckdb` with:
 
 ```sql
-ALTER TABLE gcdissuesnapshot ADD PARTITION (snapshot=20260915)
-  LOCATION 's3://gcd-parquet/snapshot=20260915/';
+CREATE VIEW gcdissuesnapshot AS
+  SELECT * FROM read_parquet('gcd-parquet/snapshot=*/part-*.parquet',
+                             hive_partitioning=true, union_by_name=true)
+```
+
+The `union_by_name=true` option handles schema evolution across snapshots — columns added in later snapshots come back as `NULL` for older rows.
+
+## Redash
+
+Redash runs in Docker and mounts the DuckDB file. See `compose.yaml` in the `redash/` directory. The custom DuckDB query runner is at `redash/redash/query_runner/duckdb.py`.
+
+Extracted queries (DuckDB dialect) are in `queries/`.
+
+## Athena
+
+`src/main/athena/gcdissuesnapshot.sql` defines the external table over `s3://gcd-parquet/`. After uploading a new snapshot:
+
+```sql
+ALTER TABLE gcdissuesnapshot ADD PARTITION (snapshot=20261001)
+  LOCATION 's3://gcd-parquet/snapshot=20261001/';
 ```
 
 ## Output schema
 
-The Avro schema is in `src/main/avro/issue_data.avsc`. Key sections:
+Key column groups in the denormalized `gcdissuesnapshot` table:
 
 - **Issue**: `issue_id`, `issue_number`, `publication_date`, `price`, `page_count`, `isbn`, `barcode`, `title`, `rating`, etc.
 - **Series**: `series_id`, `series_name`, `series_year_began/ended`, `series_country_code`, `series_language_code`, `series_color`, `series_binding`, etc.
 - **Publisher**: `publisher_id`, `publisher_name`, `publisher_country_code`, `publisher_url`
 - **Indicia publisher**: `indicia_publisher_id`, `indicia_publisher_name`, year range, surrogate flag
-- **Brand**: `brand_id`, `brand_name`, `brand_url`; plus `brand_names` / `brand_count` when `multiBrand=true`
-- **Story**: `story_id`, `story_title`, `story_feature`, `story_genre`, `story_characters`, `story_type`, creator credits (script, pencils, inks, colors, letters, editing, painting) with optional `_creator_id` arrays
+- **Brand**: `brand_id`, `brand_name`, `brand_url`, `brand_names` (array), `brand_count`
+- **Story**: `story_id`, `story_title`, `story_feature`, `story_genre`, `story_characters`, `story_type`, creator credit arrays (script, pencils, inks, colors, letters, editing, painting) with optional `_creator_id` arrays
+- **Snapshot**: `snapshot` (INTEGER, YYYYMMDD)
 
-> **Schema rule**: new fields must always be appended at the end of `issue_data.avsc`. Inserting fields in the middle shifts Parquet column positions and breaks Athena/Presto readers over existing partitions.
+> **Schema rule**: new fields must always be appended at the end. Inserting fields in the middle shifts Parquet column positions and breaks Athena readers over existing partitions.
 
 ## Project layout
 
 ```
-src/main/avro/       Avro schema (issue_data.avsc)
+src/main/python/     Python ETL and helper scripts
+  pipeline.py        Main ETL: MySQL → Parquet
+  mysql-load-snapshot.py  MySQL snapshot loader
+  update_queries.py  Redash query management
+  refresh_query.py   Redash query refresh
 src/main/athena/     Athena DDL
-src/main/java/       Java ETL source
-src/main/python/     Helper scripts (query management, snapshot load)
-*-template.yml       Per-year config templates
-config*.yml          Per-snapshot configs (generated, not committed)
+queries/             Extracted Redash queries (DuckDB dialect)
+setup-duckdb.sh      Create/refresh local DuckDB database
 run-all.sh           Full pipeline driver
 run-parquet.sh       Single-snapshot Parquet export
-upload-hdfs.sh       HDFS upload
-upload-athena.sh     Athena partition registration
+sync-parquet.sh      Sync Parquet snapshots locally
+upload-athena.sh     S3 sync + Athena partition registration
+download.sh          GCD dump download
+parquet-robots.txt   robots.txt for parquet.gcdata.org
 ```
+
+## Historical note
+
+Prior to 2026 the pipeline was a Java/Maven project using the Cloudera CDH 5 distribution to write Parquet via Avro, stored in HDFS, queried via Hive and Presto. It was replaced by a Python/pyarrow pipeline that eliminates the Hadoop, Hive, and Presto daemons. The old Avro schema (`src/main/avro/issue_data.avsc`) and Java source (`src/main/java/`) are preserved in git history.
