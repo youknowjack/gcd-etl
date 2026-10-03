@@ -1,0 +1,331 @@
+5	Stories Using New Credit System, By Snapshot	GCD DuckDB	SELECT snapshot,
+        count(distinct(story_id)) as stories
+FROM "gcd"."gcdissuesnapshot"
+WHERE snapshot >= 20200101 AND story_credit_source='gcd_story_credit' AND
+        snapshot % 10000 IN (101, 401, 701, 1001)
+GROUP BY snapshot
+ORDER BY snapshot DESC
+6	Issues Missing on_sale_date since 1995	GCD DuckDB	select snapshot, series_id, series_name, series_country_code, issue_number, publication_date
+from gcd.gcdissuesnapshot
+where snapshot = 20211115 and series_country_code = '{{ country_code }}' and publication_date > {{start_year}}0000 and publication_date < {{end_year_exclusive}}0000 and on_sale_date is null
+order by series_name, series_country_code
+
+8	2020-05-01 US/CA Missing on_sale_date since 1995	GCD DuckDB	SELECT series_name, issue_number, publisher_name, publication_date, COUNT(1) as story_count
+FROM gcd.gcdissuesnapshot
+WHERE snapshot = 20211115 AND on_sale_date=-1 AND publication_date > 19950000 AND issue_number>0 AND series_country_code in ('us','ca')
+GROUP BY series_name, issue_number, publisher_name, publication_date
+ORDER BY publication_date
+
+9	US/CA Issue Count Missing on_sale_date since 1995	GCD DuckDB	select snapshot, count(distinct(issue_id)) as issue_count
+from gcd.gcdissuesnapshot
+where series_country_code in ('us', 'ca') and publication_date > 19950000 and on_sale_date is null
+group by snapshot
+order by snapshot desc
+10	Top Artists	GCD DuckDB	SELECT story.artist,
+        count(distinct(issue_id)) as issues,
+        count(distinct(series_id)) as series,
+        count(distinct(publisher_id)) as publishers
+FROM gcd.gcdissuesnapshot
+CROSS JOIN UNNEST(story_pencils) AS story(artist)
+WHERE snapshot={{ snapshot }} AND
+        story.artist not like '%?%' AND
+        story.artist NOT IN ('', 'various') AND
+        variant_of_issue_id=0
+GROUP BY story.artist
+ORDER BY issues DESC
+LIMIT 1000
+
+11	Top Writers	GCD DuckDB	SELECT story.writer,
+         count(distinct(issue_id)) AS issues,
+         count(distinct(series_id)) AS series,
+         count(distinct(publisher_id)) AS publishers
+FROM "gcd"."gcdissuesnapshot"
+CROSS JOIN UNNEST(story_script) AS story(writer)
+WHERE snapshot={{ snapshot }} AND
+        story.writer NOT LIKE '%?%' AND story.writer != '' AND
+        series_language_code = '{{ language }}' AND variant_of_issue_id = 0
+GROUP BY  story.writer
+ORDER BY  issues DESC
+LIMIT 1000
+12	Series Drawn by Curt Swan	GCD DuckDB	SELECT series_name,
+         count(distinct(issue_id)) AS issues
+FROM "gcd"."gcdissuesnapshot"
+WHERE snapshot={{ snapshot }} AND
+        contains(story_pencils, 'Curt Swan') AND
+        variant_of_issue_id = 0
+GROUP BY  series_name
+ORDER BY  issues DESC
+13	Most Common Page Counts	GCD DuckDB	SELECT page_count,
+        count(distinct(issue_id)) as issues
+FROM "gcd"."gcdissuesnapshot"
+WHERE snapshot={{ snapshot }} AND
+        series_language_code = '{{ language }}' AND
+        page_count != 0 AND
+        publication_date >= {{ start_year }}0000 AND
+        publication_date <= {{ end_year}}9999
+GROUP BY page_count
+ORDER BY issues DESC
+LIMIT 1000
+14	Series by Author	GCD DuckDB	SELECT series_name,
+         count(distinct(issue_id)) AS issues
+FROM "gcd"."gcdissuesnapshot"
+WHERE snapshot={{ snapshot }} AND
+        len(filter(story_script, x -> regexp_matches(x, 'Stan Lee( [\[\(].*)?'))) > 0 AND
+        series_language_code = 'en' AND variant_of_issue_id = 0
+GROUP BY  series_name
+ORDER BY  issues DESC
+15	Comics By Country	GCD DuckDB	SELECT series_country_code,
+         count(distinct(series_id)) AS series,
+         count(distinct(issue_id)) AS issues,
+         count(distinct(story_id)) AS stories
+FROM "gcd"."gcdissuesnapshot"
+WHERE snapshot={{ snapshot }}
+GROUP BY  series_country_code
+ORDER BY  series DESC
+16	Top Superhero Comics Series	GCD DuckDB	SELECT series_name,
+         count(distinct(issue_id)) AS issues,
+         count(distinct(series_id)) AS series
+FROM "gcd"."gcdissuesnapshot"
+WHERE snapshot={{ snapshot }} AND contains(story_genre,'superhero')
+GROUP BY  series_name
+ORDER BY  issues DESC LIMIT 25
+17	Issues With Most Variants	GCD DuckDB	SELECT variant_of_issue_id,
+         series_name,
+         issue_number_raw,
+         publication_date,
+         count(distinct(issue_id)) as issues
+FROM "gcd"."gcdissuesnapshot"
+WHERE snapshot = {{ snapshot }} AND variant_of_issue_id != 0
+GROUP BY variant_of_issue_id,
+         series_name,
+         issue_number_raw,
+         publication_date
+ORDER BY issues DESC
+LIMIT 100
+18	Most Common Prices	GCD DuckDB	SELECT i.price,
+        count(distinct(issue_id)) as issues
+FROM "gcd"."gcdissuesnapshot"
+CROSS JOIN UNNEST(price) AS i(price)
+WHERE snapshot = {{ snapshot }} AND
+        i.price LIKE '%{{ currency }}%' AND
+        publication_date >= {{ start_year }}0000 AND
+        publication_date <= {{ end_year }}9999
+GROUP BY i.price
+ORDER BY issues DESC
+
+19	Created in Oct 2019	GCD DuckDB	SELECT created,
+        count(distinct(series_id)) as series,
+        count(distinct(issue_id)) as issues,
+        count(distinct(story_id)) as stories
+FROM "gcd"."gcdissuesnapshot"
+WHERE snapshot = {{ snapshot }} AND created < 20191101 AND created > 20191000
+GROUP BY created
+20	Variants of The Amazing Spider-Man 666	GCD DuckDB	SELECT series_name, issue_number_raw, variant_name
+FROM "gcd"."gcdissuesnapshot"
+WHERE snapshot = {{ snapshot }} AND variant_of_issue_id = 863623
+GROUP BY series_name, issue_number_raw, variant_name
+21	Modified in Oct 2019	GCD DuckDB	SELECT modified,
+        count(distinct(series_id)) as series,
+        count(distinct(issue_id)) as issues,
+        count(distinct(story_id)) as stories
+FROM "gcd"."gcdissuesnapshot"
+WHERE snapshot = {{ snapshot }} AND modified < 20191101 AND modified > 20191000
+GROUP BY modified
+22	Issue Count By Snapshot	GCD DuckDB	SELECT snapshot,
+        count(distinct(issue_id)) as issues
+FROM gcd.gcdissuesnapshot
+WHERE snapshot % 10000 IN (101, 401, 701, 1001)
+      AND variant_of_issue_id = 0 
+      AND series_is_comics_publication = true
+GROUP BY snapshot
+ORDER BY snapshot DESC
+23	Top 5 Publishing Countries in 2019	GCD DuckDB	SELECT series_country_code, count(distinct(series_id)) as "Series Count"
+FROM "gcd"."gcdissuesnapshot"
+WHERE snapshot=20261001 AND publication_date > 20190000 AND publication_date < 20200000
+GROUP BY series_country_code
+ORDER BY count(distinct(series_id)) desc
+LIMIT 5
+24	Series Count By Country	GCD DuckDB	SELECT if(series_country_code='us', 'United States', 'Rest of World') as geo, count(distinct(series_id)) as "% of Series"
+FROM "gcd"."gcdissuesnapshot"
+WHERE snapshot={{ snapshot }}
+GROUP BY series_country_code='us'
+25	Snapshots	GCD DuckDB	SELECT snapshot
+FROM "gcd"."gcdissuesnapshot"
+GROUP BY snapshot
+ORDER BY snapshot DESC
+26	Issues by ...	GCD DuckDB	SELECT series_name, issue_number
+FROM "gcd"."gcdissuesnapshot"
+WHERE snapshot={{ snapshot }} AND
+        len(filter(story_script, x -> x = '{{writer}}')) > 0 AND
+        series_language_code = 'en' AND variant_of_issue_id = 0
+GROUP BY series_name, issue_number
+ORDER BY series_name, issue_number
+27	Issue Count In 2022 Snapshots	GCD DuckDB	SELECT snapshot,
+        count(distinct(issue_id)) as issues
+FROM gcd.gcdissuesnapshot
+WHERE snapshot > 20220000 AND snapshot < 20230000
+GROUP BY snapshot
+ORDER BY snapshot DESC
+28	Non-Variant Comic Issue Count In 2022 Snapshots	GCD DuckDB	SELECT snapshot,
+        count(distinct(issue_id)) as issues
+FROM gcd.gcdissuesnapshot
+WHERE snapshot > 20220000 AND snapshot < 20230000 AND variant_of_issue_id = 0 AND series_is_comics_publication = true
+GROUP BY snapshot
+ORDER BY snapshot DESC
+29	Average Price By Year	GCD DuckDB	SELECT CAST(publication_date//10000 as varchar) as year,
+        ROUND(avg(cast(regexp_extract(i.price, '[0-9]+\.[0-9]+') as double)), 2) as average_price,
+        count(1) as unique_issue_count
+FROM gcd.gcdissuesnapshot
+CROSS JOIN UNNEST(price) AS i(price)
+WHERE snapshot = {{ snapshot }} AND
+        series_language_code = '{{ language }}' AND
+        series_country_code = '{{ country }}' AND
+        page_count = {{ page_count }} AND
+        variant_of_issue_id = 0 AND
+        regexp_matches(i.price, '^[0-9]+\.[0-9]+ ?{{ currency }}') AND
+        publication_date >= {{ start_year }}0000 AND
+        publication_date <= {{ end_year }}9999
+GROUP BY year
+ORDER BY year DESC
+LIMIT 100
+30	Publication Years	GCD DuckDB	SELECT CAST(publication_date//10000 as varchar) as year
+FROM "gcd"."gcdissuesnapshot"
+WHERE snapshot = (extract(YEAR from current_date))*10000+101 AND 
+    publication_date > 19000000 AND
+    publication_date < (year(current_date)+1)*10000
+GROUP BY year
+ORDER BY year DESC
+31	Price Trends by Year	GCD DuckDB	SELECT CAST(publication_date//10000 as varchar) as year,
+    page_count, 
+    ROUND(avg(cast(regexp_extract(i.price, '[0-9]+\.[0-9]+') as double)), 2) as average_price,
+    count(1) as issue_count
+FROM "gcd"."gcdissuesnapshot"
+CROSS JOIN UNNEST(price) AS i(price)
+WHERE snapshot = {{ snapshot }} AND
+    page_count = {{ page_count }} AND
+    publication_date < year(current_date)*10000 AND
+    publication_date > 19030000 AND
+    regexp_matches(i.price, '^[0-9]+\.[0-9]+ ?{{ currency }}') AND
+    variant_of_issue_id = 0
+GROUP BY year, page_count
+ORDER BY year DESC, issue_count DESC
+32	Prices by Page Count	GCD DuckDB	SELECT CAST(page_count as varchar) as pages, 
+    ROUND(avg(cast(regexp_extract(i.price, '[0-9]+\.[0-9]+') as double)), 2) as average_price,
+    count(1) as issue_count
+FROM "gcd"."gcdissuesnapshot"
+CROSS JOIN UNNEST(price) AS i(price)
+WHERE snapshot = {{ snapshot }} AND
+    publication_date > {{ start_year_inclusive }}*10000 AND
+    publication_date < {{ end_year_exclusive }}*10000 AND
+    regexp_matches(i.price, '^[0-9]+\.[0-9]+ ?{{ currency }}') AND
+    variant_of_issue_id = 0 AND
+    page_count > 0
+GROUP BY page_count HAVING count(1) > {{ min_issue_count }}
+ORDER BY page_count ASC
+33	Prices by Page Count Over Time	GCD DuckDB	SELECT CAST(publication_date//10000 as varchar) as year,
+    CAST(page_count as varchar) as pages, 
+    ROUND(avg(cast(regexp_extract(i.price, '[0-9]+\.[0-9]+') as double)), 2) as average_price,
+    count(1) as issue_count
+FROM "gcd"."gcdissuesnapshot"
+CROSS JOIN UNNEST(price) AS i(price)
+WHERE snapshot = {{ snapshot }} AND
+    publication_date > {{ start_year }}0000 AND
+    publication_date < {{ end_year }}0000 AND
+    regexp_matches(i.price, '^[0-9]+\.[0-9]+ ?{{ currency }}') AND
+    variant_of_issue_id = 0 AND
+    page_count IN ({{page_counts}})
+GROUP BY year, page_count
+ORDER BY year DESC, page_count DESC
+34	Unique Issue Count By Page Count and Publication Year	GCD DuckDB	SELECT CAST(publication_date//10000 as varchar) as year,
+    CAST(page_count as varchar) as pages, 
+    count(distinct(issue_id)) as issue_count
+FROM "gcd"."gcdissuesnapshot"
+CROSS JOIN UNNEST(price) AS i(price)
+WHERE snapshot = {{ snapshot }} AND
+    publication_date > {{ start_year }}0000 AND
+    publication_date < {{ end_year }}0000 AND
+    variant_of_issue_id = 0 AND
+    regexp_matches(series_country_code, '{{ country_code_regexp }}') AND
+    regexp_matches(i.price, '{{ currency_regexp }}') AND
+    page_count IN ({{ page_counts }})
+GROUP BY year, page_count
+ORDER BY year DESC, page_count DESC
+35	Unique Issue Count By Publisher and Publication Year	GCD DuckDB	SELECT CAST(publication_date//10000 as varchar) as year,
+    publisher_name, 
+    count(distinct(issue_id)) as issue_count,
+    count(distinct(series_id)) as series_count
+FROM "gcd"."gcdissuesnapshot"
+WHERE snapshot = {{ snapshot }} AND
+    publication_date > {{ start_year }}0000 AND
+    publication_date < {{ end_year }}0000 AND
+    variant_of_issue_id = 0 AND
+    regexp_matches(series_country_code, '{{ country_code_regexp }}') AND
+    regexp_matches(publisher_name, '{{ publisher_regexp }}')
+GROUP BY year, publisher_name
+ORDER BY year DESC, issue_count DESC
+36	Issues/Series By Publisher and Publication Year	GCD DuckDB	SELECT CAST(publication_date//10000 as varchar) as year,
+    series_name,
+    count(distinct(issue_id)) as issue_count
+FROM "gcd"."gcdissuesnapshot"
+WHERE snapshot = {{ snapshot }} AND
+    publication_date > {{ start_year }}0000 AND
+    publication_date < {{ end_year }}0000 AND
+    variant_of_issue_id = 0 AND
+    regexp_matches(series_country_code, '{{ country_code_regexp }}') AND
+    series_name <> 'Gwandanaland Comics'
+GROUP BY year, series_name HAVING count(distinct(issue_id)) > 12
+ORDER BY year DESC, issue_count DESC
+37	Unique Comic Issue Count Reaches 2 Million in 2023	GCD DuckDB	SELECT snapshot,
+        count(distinct(issue_id)) as issues
+FROM gcd.gcdissuesnapshot
+WHERE snapshot > 20230300 AND snapshot < 20230900
+      AND variant_of_issue_id = 0 
+      AND series_is_comics_publication = true
+GROUP BY snapshot
+ORDER BY snapshot DESC
+38	Top Writers By Decade	GCD DuckDB	SELECT decade, rank, writer, issues FROM (
+    SELECT story.writer,
+         FLOOR(publication_date/100000)*10 as decade,
+         count(distinct(issue_id)) AS issues,
+         row_number() over (partition by FLOOR(publication_date/100000)*10 order by count(distinct(issue_id)) desc) as rank
+    FROM "gcd"."gcdissuesnapshot"
+    CROSS JOIN UNNEST(story_script) AS story(writer)
+    WHERE snapshot={{ snapshot }} AND
+            story.writer NOT LIKE '%?%' AND story.writer != '' AND
+            series_language_code = '{{ language}}' AND variant_of_issue_id = 0
+    GROUP BY  story.writer, FLOOR(publication_date/100000)*10
+    ORDER BY  decade DESC, issues DESC
+)
+WHERE rank <= {{ count }} AND decade >= {{ first_decade }} AND decade <= {{ last_decade }}
+ORDER BY decade DESC, rank
+39	Languages	GCD DuckDB	SELECT series_language_code
+FROM "gcd"."gcdissuesnapshot"
+WHERE snapshot=20240901
+GROUP BY series_language_code
+ORDER BY count(1) DESC
+40	Currencies	GCD DuckDB	SELECT currency FROM (
+    SELECT regexp_extract(i.price, '[A-Z]{3}') as currency
+    FROM gcd.gcdissuesnapshot
+    CROSS JOIN UNNEST(price) AS i(price)
+    WHERE snapshot = 20231215 AND regexp_matches(i.price, '[0-9]+\.[0-9]+ ?[A-Z]{3}')
+)
+GROUP BY currency
+ORDER BY count(1) DESC
+41	Comics with valid prices by country	GCD DuckDB	SELECT series_country_code, count(distinct(issue_id)) count
+FROM "gcd"."gcdissuesnapshot"
+WHERE snapshot={{ snapshot }} AND len(filter(price, x -> NOT regexp_matches(x, '[none]|^[\?]?$'))) > 0
+GROUP BY series_country_code
+ORDER BY count DESC
+42	Countries	GCD DuckDB	SELECT series_country_code
+FROM "gcd"."gcdissuesnapshot"
+WHERE snapshot=20231215
+GROUP BY series_country_code
+ORDER BY count(1) DESC
+43	Copy of (#39) Languages	GCD DuckDB	SELECT series_language_code
+FROM "gcd"."gcdissuesnapshot"
+WHERE snapshot=20231215
+GROUP BY series_language_code
+ORDER BY count(1) DESC
+44	GCDUpdateSchedule	GCD DuckDB	SELECT CURRENT_DATE = last_day(CURRENT_DATE) OR
+      CAST(strftime(CURRENT_DATE, '%Y%m%d') AS INTEGER) % 100 = 15
+      AS ready_to_update
