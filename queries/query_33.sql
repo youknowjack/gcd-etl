@@ -18,6 +18,6 @@ FROM (
         page_count IN ({{page_counts}})
 )
 CROSS JOIN UNNEST(price) AS i(price)
-WHERE regexp_matches(i.price, '^[0-9]+\.[0-9]+ ?{{ currency }}')
+WHERE regexp_full_match(i.price, '^[0-9]+\.[0-9]+ ?{{ currency }}')
 GROUP BY year, page_count
 ORDER BY year DESC, page_count DESC

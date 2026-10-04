@@ -9,7 +9,7 @@ WHERE snapshot = {{ snapshot }} AND
     publication_date > {{ start_year }}0000 AND
     publication_date < {{ end_year }}0000 AND
     variant_of_issue_id = 0 AND
-    regexp_matches(series_country_code, '{{ country_code_regexp }}') AND
+    regexp_full_match(series_country_code, '{{ country_code_regexp }}') AND
     series_name <> 'Gwandanaland Comics'
 GROUP BY year, series_name HAVING count(distinct(issue_id)) > 12
 ORDER BY year DESC, issue_count DESC

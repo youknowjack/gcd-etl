@@ -7,7 +7,7 @@ SELECT currency FROM (
         SELECT price FROM gcd.gcdissuesnapshot WHERE snapshot = {{snapshot}}
     )
     CROSS JOIN UNNEST(price) AS i(price)
-    WHERE regexp_matches(i.price, '[0-9]+\.[0-9]+ ?[A-Z]{3}')
+    WHERE regexp_full_match(i.price, '[0-9]+\.[0-9]+ ?[A-Z]{3}')
 )
 GROUP BY currency
 ORDER BY count(1) DESC

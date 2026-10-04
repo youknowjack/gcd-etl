@@ -15,6 +15,6 @@ FROM (
         variant_of_issue_id = 0
 )
 CROSS JOIN UNNEST(price) AS i(price)
-WHERE regexp_matches(i.price, '^[0-9]+\.[0-9]+ ?{{ currency }}')
+WHERE regexp_full_match(i.price, '^[0-9]+\.[0-9]+ ?{{ currency }}')
 GROUP BY year, page_count
 ORDER BY year DESC, issue_count DESC
