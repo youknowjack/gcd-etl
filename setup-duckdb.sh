@@ -2,10 +2,6 @@
 # Create or refresh gcd-db/gcd.duckdb with a view over all local Parquet snapshots.
 # Run this after adding a new snapshot to gcd-parquet/ or on first setup.
 #
-# The view always uses /data/gcd-parquet (the Docker mount path) so the file
-# works correctly when opened by Redash containers. The host parquet directory
-# is only used for the snapshot count check.
-#
 # Usage: ./setup-duckdb.sh
 set -e
 
@@ -14,6 +10,7 @@ DB_DIR="$DIR/gcd-db"
 DB="$DB_DIR/gcd.duckdb"
 PARQUET="$DIR/gcd-parquet"
 DOCKER_PARQUET_PATH="/data/gcd-parquet"
+REDASH_DIR="$(cd "$DIR/../redash" 2>/dev/null && pwd || echo "")"
 
 mkdir -p "$DB_DIR"
 
@@ -29,19 +26,38 @@ if [ "$SNAPSHOT_COUNT" -eq 0 ]; then
 fi
 
 echo "Found $SNAPSHOT_COUNT snapshots in $PARQUET"
-echo "Building $DB (view path: $DOCKER_PARQUET_PATH) ..."
 
+# Create view using host path (DuckDB CLI runs on host)
+echo "Building $DB (host path: $PARQUET) ..."
 duckdb "$DB" <<SQL
 CREATE OR REPLACE VIEW gcdissuesnapshot AS
 SELECT *
 FROM read_parquet(
-    '$DOCKER_PARQUET_PATH/snapshot=*/part-*.parquet',
+    '$PARQUET/snapshot=*/part-*.parquet',
     hive_partitioning = true,
     union_by_name    = true
 );
 SQL
 
-echo ""
 echo "Done: $DB"
-echo ""
-echo "Next: restart Redash containers to pick up the refreshed view."
+
+# Update view inside Redash Docker container to use the Docker mount path
+UPDATE_PY="
+import duckdb
+con = duckdb.connect('/data/gcd-db/gcd.duckdb')
+con.execute('CREATE OR REPLACE VIEW gcdissuesnapshot AS SELECT * FROM read_parquet(\'$DOCKER_PARQUET_PATH/snapshot=*/part-*.parquet\', hive_partitioning=True, union_by_name=True)')
+con.close()
+print('Docker view updated: $DOCKER_PARQUET_PATH')
+"
+
+if [ -n "$REDASH_DIR" ] && docker compose -f "$REDASH_DIR/compose.yaml" ps --services --filter status=running 2>/dev/null | grep -q server; then
+  echo "Updating view inside Redash container ..."
+  docker compose -f "$REDASH_DIR/compose.yaml" exec server python3 -c "$UPDATE_PY"
+else
+  echo ""
+  echo "Redash not running. To update the view inside Docker, run:"
+  echo "  docker compose exec server python3 -c \""
+  echo "  import duckdb; con = duckdb.connect('/data/gcd-db/gcd.duckdb');"
+  echo "  con.execute(\\\"CREATE OR REPLACE VIEW gcdissuesnapshot AS SELECT * FROM read_parquet('$DOCKER_PARQUET_PATH/snapshot=*/part-*.parquet', hive_partitioning=True, union_by_name=True)\\\");"
+  echo "  con.close()\""
+fi
