@@ -6,13 +6,15 @@ SELECT decade, rank, writer, issues FROM (
          FLOOR(publication_date/100000)*10 as decade,
          count(distinct(issue_id)) AS issues,
          row_number() over (partition by FLOOR(publication_date/100000)*10 order by count(distinct(issue_id)) desc) as rank
-    FROM "gcd"."gcdissuesnapshot"
+    FROM (
+        SELECT issue_id, publication_date, story_script
+        FROM gcd.gcdissuesnapshot
+        WHERE snapshot={{ snapshot }} AND series_language_code = '{{ language}}' AND variant_of_issue_id = 0
+    )
     CROSS JOIN UNNEST(story_script) AS story(writer)
-    WHERE snapshot={{ snapshot }} AND
-            story.writer NOT LIKE '%?%' AND story.writer != '' AND
-            series_language_code = '{{ language}}' AND variant_of_issue_id = 0
-    GROUP BY  story.writer, FLOOR(publication_date/100000)*10
-    ORDER BY  decade DESC, issues DESC
+    WHERE story.writer NOT LIKE '%?%' AND story.writer != ''
+    GROUP BY story.writer, FLOOR(publication_date/100000)*10
+    ORDER BY decade DESC, issues DESC
 )
 WHERE rank <= {{ count }} AND decade >= {{ first_decade }} AND decade <= {{ last_decade }}
 ORDER BY decade DESC, rank
