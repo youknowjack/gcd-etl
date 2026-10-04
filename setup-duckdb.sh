@@ -50,7 +50,7 @@ con.close()
 print('Docker view updated: $DOCKER_PARQUET_PATH')
 "
 
-if [ -n "$REDASH_DIR" ] && docker compose -f "$REDASH_DIR/compose.yaml" ps --services --filter status=running 2>/dev/null | grep -q server; then
+if [ -n "$REDASH_DIR" ] && docker compose -f "$REDASH_DIR/compose.yaml" ps -q server 2>/dev/null | grep -q .; then
   echo "Updating view inside Redash container ..."
   docker compose -f "$REDASH_DIR/compose.yaml" exec server python3 -c "$UPDATE_PY"
 else
