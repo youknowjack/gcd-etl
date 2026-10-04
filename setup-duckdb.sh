@@ -7,10 +7,10 @@ set -e
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
 DB_DIR="$DIR/gcd-db"
-DB="$DB_DIR/gcd.duckdb"
+DB="$DB_DIR/analytics.duckdb"
 PARQUET="$DIR/gcd-parquet"
 DOCKER_PARQUET_PATH="/data/gcd-parquet"
-REDASH_DIR="$(cd "$DIR/../redash" 2>/dev/null && pwd || echo "")"
+REDASH_DIR="$(cd "$DIR/../redash" 2>/dev/null && pwd || cd "$HOME/redash" 2>/dev/null && pwd || echo "")"
 
 mkdir -p "$DB_DIR"
 
@@ -27,16 +27,19 @@ fi
 
 echo "Found $SNAPSHOT_COUNT snapshots in $PARQUET"
 
-# Create view using host path (DuckDB CLI runs on host)
+# Create schema + view using host path (DuckDB CLI runs on host)
 echo "Building $DB (host path: $PARQUET) ..."
 duckdb "$DB" <<SQL
-CREATE OR REPLACE VIEW gcdissuesnapshot AS
+CREATE SCHEMA IF NOT EXISTS gcd;
+CREATE OR REPLACE VIEW gcd.gcdissuesnapshot AS
 SELECT *
 FROM read_parquet(
     '$PARQUET/snapshot=*/part-*.parquet',
     hive_partitioning = true,
     union_by_name    = true
 );
+CREATE OR REPLACE VIEW gcdissuesnapshot AS
+SELECT * FROM gcd.gcdissuesnapshot;
 SQL
 
 echo "Done: $DB"
@@ -44,8 +47,10 @@ echo "Done: $DB"
 # Update view inside Redash Docker container to use the Docker mount path
 UPDATE_PY="
 import duckdb
-con = duckdb.connect('/data/gcd-db/gcd.duckdb')
-con.execute('CREATE OR REPLACE VIEW gcdissuesnapshot AS SELECT * FROM read_parquet(\'$DOCKER_PARQUET_PATH/snapshot=*/part-*.parquet\', hive_partitioning=True, union_by_name=True)')
+con = duckdb.connect('/data/gcd-db/analytics.duckdb')
+con.execute('CREATE SCHEMA IF NOT EXISTS gcd')
+con.execute('CREATE OR REPLACE VIEW gcd.gcdissuesnapshot AS SELECT * FROM read_parquet(\'$DOCKER_PARQUET_PATH/snapshot=*/part-*.parquet\', hive_partitioning=True, union_by_name=True)')
+con.execute('CREATE OR REPLACE VIEW gcdissuesnapshot AS SELECT * FROM gcd.gcdissuesnapshot')
 con.close()
 print('Docker view updated: $DOCKER_PARQUET_PATH')
 "
@@ -57,7 +62,7 @@ else
   echo ""
   echo "Redash not running. To update the view inside Docker, run:"
   echo "  docker compose exec server python3 -c \""
-  echo "  import duckdb; con = duckdb.connect('/data/gcd-db/gcd.duckdb');"
+  echo "  import duckdb; con = duckdb.connect('/data/gcd-db/analytics.duckdb');"
   echo "  con.execute(\\\"CREATE OR REPLACE VIEW gcdissuesnapshot AS SELECT * FROM read_parquet('$DOCKER_PARQUET_PATH/snapshot=*/part-*.parquet', hive_partitioning=True, union_by_name=True)\\\");"
   echo "  con.close()\""
 fi
