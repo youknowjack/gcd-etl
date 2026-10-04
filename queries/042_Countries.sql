@@ -3,6 +3,6 @@
 
 SELECT series_country_code
 FROM "gcd"."gcdissuesnapshot"
-WHERE snapshot=20231215
+WHERE snapshot={{snapshot}}
 GROUP BY series_country_code
 ORDER BY count(1) DESC

@@ -6,6 +6,6 @@ Last Updated At: 2023-12-16T21:21:30.191Z
 */
 SELECT series_language_code
 FROM "gcd"."gcdissuesnapshot"
-WHERE snapshot=20231215
+WHERE snapshot={{snapshot}}
 GROUP BY series_language_code
 ORDER BY count(1) DESC
